@@ -1,0 +1,4 @@
+flask
+pre-commit==1.10.1
+flask-sqlalchemy
+mysqlclient
