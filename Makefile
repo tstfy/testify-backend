@@ -1,28 +1,13 @@
-.PHONY: install dev test clean help
+.PHONY: install dev clean help
 
 install:  ## install production dependencies
 	vendor/venv-update venv= -ppython3 .venv \
 	install= -r requirements.txt
 
-dev:  ## install development dependencies and pre-commit hooks
-	vendor/venv-update venv= -ppython3 .venv \
-	install= -r requirements.txt -r requirements-dev.txt
-	.venv/bin/pre-commit install --install-hooks -f
-
-test: dev  ## run unit tests
-	# .venv/bin/python -m pytest \
-	# --cov-report term-missing:skip-covered \
-	# --cov=asrm/ \
-	# tests/
-	@echo
-	.venv/bin/pre-commit install --install-hooks -f
-	@echo
-	.venv/bin/pre-commit run --all-files
-	@echo
-	.venv/bin/check-requirements
+dev:  ## install development dependencies
+	pip install -r requirements.txt
 
 clean:  ## delete artifacts
-	rm -f .coverage
 	rm -rf .venv
 	rm -rf .pytest_cache
 	find . -type f -name '*.py[co]' -delete

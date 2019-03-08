@@ -8,7 +8,6 @@ from flask_marshmallow import Marshmallow
 from passlib.hash import sha256_crypt
 from functools import wraps
 from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI
-# from testifybackend.config import SECRET_KEY
 
 from testifybackend.classes.Exception import (
     AuthenticationRequiredException,
@@ -20,7 +19,6 @@ from testifybackend.classes.Exception import (
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-# import pdb; pdb.set_trace()
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
