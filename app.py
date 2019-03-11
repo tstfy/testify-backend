@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify, session
+from flask_cors import CORS
 # from flask.ext.session import Session
 # from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
@@ -20,6 +21,7 @@ import htpasswd
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+CORS(app)
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
@@ -32,7 +34,7 @@ class Company(db.Model):
 
 class CompanySchema(ma.Schema):
     class Meta:
-        fields = ('name')
+        fields = ('name',)
 
 company_schema = CompanySchema()
 
@@ -68,7 +70,7 @@ class Employer(db.Model):
     l_name = db.Column(db.String(30))
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
-    company = db.Column(db.String(120), db.ForeignKey(Company.name))
+    company = db.Column(db.String(120), db.ForeignKey(Company.name), nullable=True)
 
     def __init__(self, username, email, password, f_name, l_name):
         self.username = username
@@ -156,7 +158,6 @@ class CommentSchema(ma.Schema):
 comment_schema = CommentSchema()
 
 class Repository(db.Model):
-    id = db.Column(db.Integer, default=1, primary_key=True)
     employer = db.Column(db.Integer, db.ForeignKey(Employer.id), primary_key=True)
     candidate = db.Column(db.Integer, db.ForeignKey(Candidate.id), primary_key=True)
     challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id), primary_key=True)
@@ -263,6 +264,7 @@ def create_challenge():
     except Exception as e:
         return(str(e))
 
+#TODO: read company field as well; if company doesn't exist in the Company table, then create entry in Company if needed
 @app.route("/users", methods=["POST"])
 def register_user():
     try:
