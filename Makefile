@@ -5,7 +5,7 @@ install:  ## install production dependencies
 	install= -r requirements.txt
 
 dev:  ## install development dependencies
-	pip install -r requirements.txt
+	pip3 install -r requirements.txt
 
 clean:  ## delete artifacts
 	rm -rf .venv
