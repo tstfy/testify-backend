@@ -15,6 +15,7 @@ from testifybackend.classes.Exception import (
     IncorrectCredentialsException
 )
 
+import htpasswd
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -23,83 +24,89 @@ app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
+class Company(db.Model):
+    name = db.Column(db.String(120), primary_key=True)
 
-class User(db.Model):
+    def __init__(self, name):
+        self.name = name
+
+class CompanySchema(ma.Schema):
+    class Meta:
+        fields = ('name')
+
+company_schema = CompanySchema()
+
+class Candidate(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True)
+    f_name = db.Column(db.String(30))
+    l_name = db.Column(db.String(30))
+    created = db.Column(db.DateTime())
+    username = db.Column(db.String(80), unique=True)
+    password = db.Column(db.String(120))
+    last_modified = db.Column(db.DateTime())
+
+    def __init__(self, email, f_name, l_name):
+        self.email = email
+        self.f_name = f_name
+        self.l_name = l_name
+        self.created = datetime.utcnow()
+        self.last_modified = datetime.utcnow()
+
+class CandidateSchema(ma.Schema):
+    class Meta:
+        fields = ('email','f_name','l_name', 'last_modified')
+
+candidate_schema = CandidateSchema()
+
+class Employer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True)
     email = db.Column(db.String(120), unique=True)
     password = db.Column(db.String(120))
     f_name = db.Column(db.String(30))
     l_name = db.Column(db.String(30))
-    role = db.Column(db.Integer, default=0)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
+    company = db.Column(db.String(120), db.ForeignKey(Company.name))
 
-    def __init__(self, username, email, password, f_name, l_name, role=0):
+    def __init__(self, username, email, password, f_name, l_name):
         self.username = username
         self.email = email
         self.password = password
         self.f_name = f_name
         self.l_name = l_name
-        self.role = role
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
 
-
-class UserSchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = ('username','email','f_name','l_name', 'last_modified')
-
-
-user_schema = UserSchema()
-# users_schema = UserSchema(many=True)
-
-class Candidate(User):
-
-    def __init__(self):
-        super().__init__(role=0)
-
-class CandidateSchema(UserSchema):
-    class Meta:
-        fields = ('username','email','f_name','l_name', 'last_modified')
-
-candidate_schema = CandidateSchema()
-
-class Employer(User):
-
-    def __init__(self):
-        super().__init__(role=1)
-
-class EmployerSchema(UserSchema):
+class EmployerSchema(ma.Schema):
     class Meta:
         fields = ('username','email','f_name','l_name', 'last_modified')
 
 employer_schema = EmployerSchema()
 
+# class Setting(db.Model):
+#     user_id = db.Column(db.Integer, primary_key=True)
+#     setting_field_1 = db.Column(db.String(80))
+#     setting_field_2 = db.Column(db.String(80))
+#     last_modified = db.Column(db.DateTime())
 
-class Setting(db.Model):
-    user_id = db.Column(db.Integer, primary_key=True)
-    setting_field_1 = db.Column(db.String(80))
-    setting_field_2 = db.Column(db.String(80))
-    last_modified = db.Column(db.DateTime())
-
-    def __init__(self, user_id):
-        self.user_id = user_id
-        self.last_modified = datetime.utcnow()
+#     def __init__(self, user_id):
+#         self.user_id = user_id
+#         self.last_modified = datetime.utcnow()
 
 
-class SettingSchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = ('last_modified',)
+# class SettingSchema(ma.Schema):
+#     class Meta:
+#         # Fields to expose
+#         fields = ('last_modified',)
 
-setting_schema = UserSchema()
+# setting_schema = SettingSchema()
 
 
 class Challenge(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    creator = db.Column(db.Integer, db.ForeignKey(User.id))
+    creator = db.Column(db.Integer, db.ForeignKey(Employer.id))
     description = db.Column(db.String(80), unique=True)
     category = db.Column(db.String(80))
     due = db.Column(db.DateTime())
@@ -126,7 +133,7 @@ challenge_schema = ChallengeSchema()
 
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.Integer, db.ForeignKey(User.id))
+    user = db.Column(db.Integer, db.ForeignKey(Employer.id))
     message = db.Column(db.String(80))
     challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id))
     created = db.Column(db.DateTime())
@@ -150,8 +157,8 @@ comment_schema = CommentSchema()
 
 class Repository(db.Model):
     id = db.Column(db.Integer, default=1, primary_key=True)
-    employer = db.Column(db.Integer, db.ForeignKey(User.id), primary_key=True)
-    candidate = db.Column(db.Integer, db.ForeignKey(User.id), primary_key=True)
+    employer = db.Column(db.Integer, db.ForeignKey(Employer.id), primary_key=True)
+    candidate = db.Column(db.Integer, db.ForeignKey(Candidate.id), primary_key=True)
     challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id), primary_key=True)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
@@ -185,7 +192,7 @@ def login_required(f):
     return wrap
 
 def existing_username(username):
-    user_count = db.session.query(User).filter(User.username==username).count()
+    user_count = db.session.query(Employer).filter(Employer.username==username).count()
 
     if int(user_count) > 0:
         return True
@@ -220,6 +227,7 @@ def create_comment():
         user = request.json['user']
         message = request.json['message']
         challenge = request.json['challenge']
+        # TODO need time of comment as well
 
         new_comment = Comment(user, message, challenge)
         db.session.add(new_comment)
@@ -263,18 +271,17 @@ def register_user():
         password = sha256_crypt.encrypt((str(request.json['password'])))
         f_name = request.json['f_name']
         l_name = request.json['l_name']
-        role = request.json['role']
         if existing_username(username):
             raise UsernameTakenException
 
         else:
             # TODO consider creating a separate Candidate/Employer object based on FE logic
-            new_user = User(username, email, password, f_name, l_name, role)
-            db.session.add(new_user)
+            new_employer = Employer(username, email, password, f_name, l_name)
+            db.session.add(new_employer)
             db.session.commit()
 
-            new_user = db.session.query(User).filter(User.username==username).first()
-            return jsonify(user_schema.dump(new_user).data)
+            new_employer = db.session.query(Employer).filter(Employer.username==username).first()
+            return jsonify(employer_schema.dump(new_employer).data)
 
     except Exception as e:
         return(str(e))
@@ -282,15 +289,15 @@ def register_user():
 
 @app.route("/user/<id>", methods=["GET"])
 def user_detail(id):
-    user = User.query.get(id)
-    return user_schema.jsonify(user)
+    user = Employer.query.get(id)
+    return employer_schema.jsonify(user)
 
 
 @app.route("/user/<id>", methods=["PUT"])
 @login_required
 def user_update(id):
     try:
-        user = User.query.get(id)
+        user = Employer.query.get(id)
         username = request.json['username']
         email = request.json['email']
 
@@ -302,7 +309,7 @@ def user_update(id):
         user.last_modified = datetime.utcnow()
 
         db.session.commit()
-        return user_schema.jsonify(user)
+        return employer_schema.jsonify(user)
 
     except Exception as e:
         return(str(e))
@@ -310,11 +317,11 @@ def user_update(id):
 @app.route("/user/<id>", methods=["DELETE"])
 @login_required
 def user_delete(id):
-    user = User.query.get(id)
+    user = Employer.query.get(id)
     db.session.delete(user)
     db.session.commit()
 
-    return user_schema.jsonify(user)
+    return employer_schema.jsonify(user)
 
 
 @app.route("/login", methods=["POST"])
@@ -324,7 +331,7 @@ def login_page():
         input_password = request.json['password']
         print(username)
         print(input_password)
-        res = db.session.query(User.username, User.password).filter(User.username==username)
+        res = db.session.query(Employer.username, Employer.password).filter(Employer.username==username)
 
         if res.count() != 1:
             raise IncorrectCredentialsException
