@@ -32,7 +32,7 @@ class Company(db.Model):
 
 class CompanySchema(ma.Schema):
     class Meta:
-        fields = ('name')
+        fields = ('name',)
 
 company_schema = CompanySchema()
 
