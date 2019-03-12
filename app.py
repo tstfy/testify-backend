@@ -41,11 +41,11 @@ company_schema = CompanySchema()
 class Candidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True)
+    password = db.Column(db.String(120))
+    username = db.Column(db.String(80), unique=True)
     f_name = db.Column(db.String(30))
     l_name = db.Column(db.String(30))
     created = db.Column(db.DateTime())
-    username = db.Column(db.String(80), unique=True)
-    password = db.Column(db.String(120))
     last_modified = db.Column(db.DateTime())
 
     def __init__(self, email, f_name, l_name):
