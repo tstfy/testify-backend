@@ -156,9 +156,9 @@ class CommentSchema(ma.Schema):
 comment_schema = CommentSchema()
 
 class Repository(db.Model):
-    employer = db.Column(db.Integer, db.ForeignKey(Employer.id), primary_key=True)
+    employer = db.Column(db.Integer, db.ForeignKey(Challenge.creator), primary_key=True)
+    challenge = db.Column(db.Integer, db.ForeignKey(Challenge.title), primary_key=True)
     candidate = db.Column(db.Integer, db.ForeignKey(Candidate.id), primary_key=True)
-    challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id), primary_key=True)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
 
