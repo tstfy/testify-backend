@@ -41,11 +41,11 @@ company_schema = CompanySchema()
 class Candidate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True)
+    password = db.Column(db.String(120))
+    username = db.Column(db.String(80), unique=True)
     f_name = db.Column(db.String(30))
     l_name = db.Column(db.String(30))
     created = db.Column(db.DateTime())
-    username = db.Column(db.String(80), unique=True)
-    password = db.Column(db.String(120))
     last_modified = db.Column(db.DateTime())
 
     def __init__(self, email, f_name, l_name):
@@ -107,8 +107,9 @@ employer_schema = EmployerSchema()
 
 
 class Challenge(db.Model):
-    creator = db.Column(db.Integer, db.ForeignKey(Employer.id), primary_key=True)
-    title = db.Column(db.String(80), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    employer = db.Column(db.Integer, db.ForeignKey(Employer.id))
+    title = db.Column(db.String(80))
     description = db.Column(db.String(140), nullable=True)
     category = db.Column(db.String(80))
     created = db.Column(db.DateTime())
@@ -116,9 +117,9 @@ class Challenge(db.Model):
     repo_link = db.Column(db.String(140))
 
 
-    def __init__(self, creator, title, description, category, repo_link):
+    def __init__(self, employer, title, description, category, repo_link):
         self.category = category
-        self.creator = creator
+        self.employer = employer
         self.title = title
         self.description = description
         self.created = datetime.utcnow()
@@ -128,7 +129,7 @@ class Challenge(db.Model):
 class ChallengeSchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('creator', 'title', 'description', 'category', 'last_modified', 'repo_link')
+        fields = ('employer', 'title', 'description', 'category', 'last_modified', 'repo_link')
 
 challenge_schema = ChallengeSchema()
 
@@ -156,9 +157,10 @@ class CommentSchema(ma.Schema):
 comment_schema = CommentSchema()
 
 class Repository(db.Model):
-    employer = db.Column(db.Integer, db.ForeignKey(Challenge.creator), primary_key=True)
-    challenge = db.Column(db.Integer, db.ForeignKey(Challenge.title), primary_key=True)
-    candidate = db.Column(db.Integer, db.ForeignKey(Candidate.id), primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    employer = db.Column(db.Integer, db.ForeignKey(Employer.id))
+    challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id))
+    candidate = db.Column(db.Integer, db.ForeignKey(Candidate.id))
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
 
@@ -199,10 +201,10 @@ def existing_username(username):
 
 
 @app.route("/challenges/<cid>/user/<uid>", methods=["POST"])
-def assign_challenge(cid, uid):
+def assign_challenge(cid, uid, eid):
     try:
         challenge = cid
-        employer = 1
+        employer = eid
         candidate = uid
 
         new_repository = Repository(employer, candidate, challenge)
@@ -210,8 +212,8 @@ def assign_challenge(cid, uid):
         db.session.commit()
 
         new_repository = db.session.query(Repository).filter(Repository.employer==employer).\
-                        filter(Repository.candidate==candidate).\
-                        filter(Repository.challenge==challenge).first()
+                        filter(Repository.challenge==challenge).\
+                        filter(Repository.candidate==candidate).first()
 
         return jsonify(repository_schema.dump(new_repository).data)
 
