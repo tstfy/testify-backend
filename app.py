@@ -107,28 +107,28 @@ employer_schema = EmployerSchema()
 
 
 class Challenge(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    creator = db.Column(db.Integer, db.ForeignKey(Employer.id))
-    description = db.Column(db.String(80), unique=True)
+    creator = db.Column(db.Integer, db.ForeignKey(Employer.id), primary_key=True)
+    title = db.Column(db.String(80), primary_key=True)
+    description = db.Column(db.String(140), nullable=True)
     category = db.Column(db.String(80))
-    due = db.Column(db.DateTime())
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
+    repo_link = db.Column(db.String(140))
 
 
-    def __init__(self, creator, description, category, due):
+    def __init__(self, creator, title, description, category, repo_link):
         self.category = category
         self.creator = creator
+        self.title = title
         self.description = description
-        self.due = due
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
-
+        self.repo_link = repo_link
 
 class ChallengeSchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('creator', 'description', 'category', 'last_modified', 'due')
+        fields = ('creator', 'title', 'description', 'category', 'last_modified', 'repo_link')
 
 challenge_schema = ChallengeSchema()
 
@@ -201,7 +201,6 @@ def existing_username(username):
 
 
 @app.route("/challenges/<cid>/user/<uid>", methods=["POST"])
-# check due date of challenge for validity
 def assign_challenge(cid, uid):
     try:
         challenge = cid
@@ -248,17 +247,17 @@ def create_comment():
 # TODO need a way to recognize which user is making this call
 def create_challenge():
     try:
-        creator = 1 # TODO hardcoded for now, remove later
+        creator = request.json['employer']
+        title = request.json['title']
         description = request.json['description']
         category = request.json['category']
-        # due = request.json['due']
-        due = datetime.today() + timedelta(days=1) #TODO hardcoded for now, remove later
+        repo_link = "testrepolink" # TODO: custom repo link
 
-        new_challenge = Challenge(creator, description, category, due)
+        new_challenge = Challenge(creator, title, description, category, repo_link)
         db.session.add(new_challenge)
         db.session.commit()
 
-        new_challenge = db.session.query(Challenge).filter(Challenge.description==description).first()
+        new_challenge = db.session.query(Challenge).filter(Challenge.creator==creator).filter(Challenge.title==title).first()
         return jsonify(challenge_schema.dump(new_challenge).data)
 
     except Exception as e:
