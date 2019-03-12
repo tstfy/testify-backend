@@ -2,21 +2,25 @@ from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
-# from flask.ext.session import Session
+# from flask.ext.session import Session # TODO: maybe use this for session
 # from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from passlib.hash import sha256_crypt
 from functools import wraps
 from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI
+from testifybackend.constants import CHALLENGES_BASE_PATH, CHALLENGES_REPOS, GIT, GIT_SERVER
 
 from testifybackend.classes.Exception import (
     AuthenticationRequiredException,
     UsernameTakenException,
-    IncorrectCredentialsException
+    IncorrectCredentialsException,
+    ChallengeExistsException,
+    ChallengeDirectoryExistsException
 )
 
 import htpasswd
+import os
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -194,11 +198,14 @@ def login_required(f):
 
 def existing_username(username):
     user_count = db.session.query(Employer).filter(Employer.username==username).count()
+    return int(user_count) > 0
 
-    if int(user_count) > 0:
-        return True
-    return False
+def existing_challenge(employer, title):
+    c = db.session.query(Challenge).filter(Challenge.employer==employer).filter(Challenge.title==title).count()
+    return int(c) > 0
 
+def company_challenge_count(employer):
+    return db.session.query(Challenge).filter(Challenge.employer==employer).count()
 
 @app.route("/challenges/<cid>/user/<uid>", methods=["POST"])
 def assign_challenge(cid, uid, eid):
@@ -212,8 +219,8 @@ def assign_challenge(cid, uid, eid):
         db.session.commit()
 
         new_repository = db.session.query(Repository).filter(Repository.employer==employer).\
-                        filter(Repository.challenge==challenge).\
-                        filter(Repository.candidate==candidate).first()
+                        filter(Repository.candidate==candidate).\
+                        filter(Repository.challenge==challenge).first()
 
         return jsonify(repository_schema.dump(new_repository).data)
 
@@ -251,13 +258,31 @@ def create_challenge():
         title = request.json['title']
         description = request.json['description']
         category = request.json['category']
-        repo_link = "testrepolink" # TODO: custom repo link
+        # repo_link = "testrepolink" # TODO: custom repo link
+
+        if existing_challenge(creator, title):
+            raise ChallengeExistsException
+
+        employer = db.session.query(Employer).filter(Employer.id==creator).first()
+        company = employer.company
+        username = employer.username
+        count = company_challenge_count(company)
+
+        path = os.path.join(CHALLENGES_BASE_PATH, company, count, CHALLENGES_REPOS)
+        if os.path.exists(path):
+            raise ChallengeDirectoryExistsException(path)
+
+        # os.makedirs recursively makes directories, i.e. creates all intermediate dirs
+        os.makedirs(path)
+        #TODO: make git repo at (path + challenge_title + .git)
+
+        repo_link = os.path.join(("http://%s@%s", username, GIT_SERVER), GIT, company, count, ("%s.git", title))
 
         new_challenge = Challenge(creator, title, description, category, repo_link)
         db.session.add(new_challenge)
         db.session.commit()
 
-        new_challenge = db.session.query(Challenge).filter(Challenge.creator==creator).filter(Challenge.title==title).first()
+        new_challenge = db.session.query(Challenge).filter(Challenge.employer==creator).filter(Challenge.title==title).first()
         return jsonify(challenge_schema.dump(new_challenge).data)
 
     except Exception as e:
@@ -289,8 +314,8 @@ def register_user():
             db.session.add(new_employer)
             db.session.commit()
 
-            new_employer = db.session.query(Employer).filter(Employer.username==username).first()
-            return jsonify(employer_schema.dump(new_employer).data)
+        new_employer = db.session.query(Employer).filter(Employer.username==username).first()
+        return jsonify(employer_schema.dump(new_employer).data)
 
     except Exception as e:
         return(str(e))
