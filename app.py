@@ -212,8 +212,8 @@ def assign_challenge(cid, uid, eid):
         db.session.commit()
 
         new_repository = db.session.query(Repository).filter(Repository.employer==employer).\
-                        filter(Repository.candidate==candidate).\
-                        filter(Repository.challenge==challenge).first()
+                        filter(Repository.challenge==challenge).\
+                        filter(Repository.candidate==candidate).first()
 
         return jsonify(repository_schema.dump(new_repository).data)
 
