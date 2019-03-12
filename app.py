@@ -263,7 +263,6 @@ def create_challenge():
     except Exception as e:
         return(str(e))
 
-#TODO: read company field as well; if company doesn't exist in the Company table, then create entry in Company if needed
 @app.route("/users", methods=["POST"])
 def register_user():
     try:
@@ -272,12 +271,21 @@ def register_user():
         password = sha256_crypt.encrypt((str(request.json['password'])))
         f_name = request.json['f_name']
         l_name = request.json['l_name']
+        company = request.json['company']
+
         if existing_username(username):
             raise UsernameTakenException
 
         else:
             # TODO consider creating a separate Candidate/Employer object based on FE logic
-            new_employer = Employer(username, email, password, f_name, l_name)
+            company_exists = db.session.query(Company).filter(Company.name == company).scalar() is not None
+
+            if not company_exists:
+                new_company = Company(company)
+                db.session.add(new_company)
+                db.session.commit()
+
+            new_employer = Employer(username, email, password, f_name, l_name, company)
             db.session.add(new_employer)
             db.session.commit()
 
