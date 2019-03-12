@@ -136,16 +136,14 @@ challenge_schema = ChallengeSchema()
 class Comment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user = db.Column(db.Integer, db.ForeignKey(Employer.id))
-    message = db.Column(db.String(80))
-    challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id))
+    message = db.Column(db.String(140))
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
 
 
-    def __init__(self, user, message, challenge):
+    def __init__(self, user, message, repository):
         self.user = user
         self.message = message
-        self.challenge = challenge
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
 
@@ -153,7 +151,7 @@ class Comment(db.Model):
 class CommentSchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('user', 'message', 'challenge', 'last_modified')
+        fields = ('user', 'message', 'repository', 'last_modified')
 
 comment_schema = CommentSchema()
 
