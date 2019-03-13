@@ -238,6 +238,19 @@ def create_comment():
     except Exception as e:
         return(str(e))
 
+@app.route("/challenges", methods=["GET"])
+# @authorization
+def get_challenges():
+    try:
+        employer = request.json['employer']
+        challenges = db.session.query(Challenge).filter(Challenge.employer_id==employer).filter(Challenge.deleted==False)
+
+        return jsonify(challenge_schema.dump(challenges).data)
+
+    except Exception as e:
+        return str(e)
+
+
 @app.route("/challenges", methods=["POST"])
 # @login_required; employer login required
 # TODO need a way to recognize which user is making this call
