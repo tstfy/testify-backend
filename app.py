@@ -27,7 +27,10 @@ from testifybackend.classes.Exception import (
     UsernameTakenException,
     IncorrectCredentialsException,
     ChallengeExistsException,
-    ChallengeRepositoryExistsException
+    ChallengeRepositoryExistsException,
+    InvalidCandidateException,
+    AlreadyDeletedException,
+    CandidateExistsException,
 )
 
 from git import Repo
@@ -70,6 +73,7 @@ class Candidate(db.Model):
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
     assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id), nullable=True)
+    deleted = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
         self.email = email
@@ -123,7 +127,7 @@ class Challenge(db.Model):
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
     repo_link = db.Column(db.String(140), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, unique=False)
+    deleted = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self, employer, title, description, category, repo_link):
         self.employer_id = employer
@@ -219,7 +223,7 @@ def company_challenge_count(employer):
     return db.session.query(Challenge).filter(Challenge.employer_id==employer).count()
 
 def create_unique_uname(email, f_name, l_name):
-#TODO: check db if email w/o domain exists in candidate table; if not create entry, otherwise generate unique entry by using f_name, l_name
+# check db if email w/o domain exists in candidate table; if not create entry, otherwise generate unique entry by using f_name, l_name
     try:
         username = email.split("@")[0]
         if not db.session.query(Candidate).filter(Candidate.username==username).count() is 0:
@@ -240,15 +244,18 @@ def create_candidate_pass():
     return uuid.uuid4()
 
 #TODO: login_required
-@app.route("/user/<eid>/challenges/<cid>/candidates", methods=["POST"])
-def add_candidates(eid, cid):
+@app.route("/user/<eid>/challenges/<challenge_id>/candidates", methods=["POST"])
+def add_candidates(eid, challenge_id):
     try:
         email = request.json['email']
         f_name = request.json['f_name']
         l_name = request.json['l_name']
         username = create_unique_uname(email, f_name, l_name)
         password = create_candidate_pass()
-        assigned_challenge = cid
+        assigned_challenge = challenge_id
+
+        if not db.session.query(Candidate).filter(Candidate.email==email).count() is 0:
+            raise CandidateExistsException
 
         new_candidate = Candidate(email, username, password, f_name, l_name, assigned_challenge)
         db.session.add(new_candidate)
@@ -264,8 +271,27 @@ def add_candidates(eid, cid):
 @app.route("/user/<eid>/challenges/<cid>/candidates", methods=["GET"])
 def view_candidates(eid, cid):
     try:
-        candidates = db.session.query(Candidate).filter(Candidate.assigned_challenge==cid)
+        candidates = db.session.query(Candidate).filter(Candidate.assigned_challenge==cid).filter(Candidate.deleted==False)
         return jsonify(candidate_schema.dump(candidates).data)
+
+    except Exception as e:
+        return(str(e))
+
+#TODO: login_required
+@app.route("/user/<eid>/challenges/<challenge_id>/candidates/<candidate_id>", methods=["DELETE"])
+def delete_candidate(challenge_id, candidate_id):
+    try:
+        res = db.session.query(Candidate).filter(Candidate.candidate_id==candidate_id)
+        if not res.count() is 1 :
+            raise InvalidCandidateException(candidate_id)
+
+        res = res.first()
+        if res.deleted:
+            raise AlreadyDeletedException(candidate_id)
+
+        res.deleted = True
+        db.session.commit()
+        return jsonify(candidate_schema.dump(res).data, success=True)
 
     except Exception as e:
         return(str(e))
@@ -273,13 +299,13 @@ def view_candidates(eid, cid):
 #TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
 
 #TODO: login_required
-@app.route("/user/<eid>/challenges/<challenge_id>/invite/<candidate_id>", methods=["POST"])
+@app.route("/user/<eid>/challenges/<cid>/invite/", methods=["POST"])
 def invite_candidates(eid, cid):
     #TODO: create repo object, repo link, creds in htpasswd and send emails here
     try:
         challenge = cid
         employer = eid
-
+        #TODO: read request for array of candidate ids to whom invites are sent
         new_repository = Repository(employer, candidate, challenge)
         db.session.add(new_repository)
         db.session.commit()
