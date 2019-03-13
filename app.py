@@ -311,6 +311,7 @@ def register_user():
                 new_company = Company(company)
                 db.session.add(new_company)
                 db.session.commit()
+                os.makedir(os.path.join(CHALLENGES_BASE_PATH, company))
 
             new_employer = Employer(username, email, password, f_name, l_name, company)
             db.session.add(new_employer)
