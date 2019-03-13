@@ -391,12 +391,6 @@ def logout():
     session.clear()
     return "LOGOUT SUCCESS"
 
-if __name__ == 'app':
-    db.drop_all()
-    db.create_all()
-    reset_git_directory()
-    app.run(debug=True)
-
 def reset_git_directory():
     for d in os.listdir(CHALLENGES_BASE_PATH):
         full_path = os.path.join(CHALLENGES_BASE_PATH, d)
@@ -406,3 +400,9 @@ def reset_git_directory():
     with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
         for user in authdb.users:
             authdb.pop(user)
+            
+if __name__ == 'app':
+    db.drop_all()
+    db.create_all()
+    reset_git_directory()
+    app.run(debug=True)
