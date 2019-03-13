@@ -327,7 +327,7 @@ def register_user():
 
 @app.route("/user/<id>", methods=["GET"])
 def user_detail(id):
-    user = db.session.query(Employer).filter(Employer.employer_id==id)
+    user = db.session.query(Employer).filter(Employer.employer_id == id).first()
     return jsonify(employer_schema.dump(user).data)
 
 
