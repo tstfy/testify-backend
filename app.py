@@ -277,7 +277,7 @@ def create_challenge():
 @app.route("/users", methods=["POST"])
 def register_user():
     try:
-        username  = request.json['username']
+        username = request.json['username']
         email = request.json['email']
         password = sha256_crypt.encrypt((str(request.json['password'])))
         f_name = request.json['f_name']
