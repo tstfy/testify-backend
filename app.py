@@ -8,7 +8,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from passlib.hash import sha256_crypt
 from functools import wraps
-from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI
+from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI, MAIL_SETTINGS
 from testifybackend.constants import (
     CHALLENGES_BASE_PATH,
     CHALLENGES_AUTH_FP,
@@ -32,6 +32,7 @@ import os
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
+app.config.update(MAIL_SETTINGS)
 CORS(app)
 
 db = SQLAlchemy(app)
