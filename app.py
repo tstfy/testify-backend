@@ -373,11 +373,11 @@ def login_page():
             raise IncorrectCredentialsException
 
         assert res.count() is 1
-
+        res = res.first()
         if sha256_crypt.verify(input_password, res.password):
             session['logged_in'] = True
             session['username'] = username
-            return jsonify(employer_schema.dump(res.first()).data,logged_in = True)
+            return jsonify(employer_schema.dump(res).data,logged_in = True)
         else:
             raise IncorrectCredentialsException
 
