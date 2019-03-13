@@ -35,6 +35,7 @@ from git import Repo
 import htpasswd
 import os
 import shutil
+import uuid
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -235,9 +236,8 @@ def create_unique_uname(email, f_name, l_name):
     except Exception as e:
         return(str(e))
 
-def create_candidate_pass(email):
-#TODO: generate random alphanumeric string of set length based on seed of email
-    pass
+def create_candidate_pass():
+    return uuid.uuid4()
 
 #TODO: login_required
 @app.route("/user/<eid>/challenges/<cid>/candidates", methods=["POST"])
@@ -247,7 +247,7 @@ def add_candidates(eid, cid):
         f_name = request.json['f_name']
         l_name = request.json['l_name']
         username = create_unique_uname(email, f_name, l_name)
-        password = create_candidate_pass(email)
+        password = create_candidate_pass()
         assigned_challenge = cid
 
         new_candidate = Candidate(email, username, password, f_name, l_name, assigned_challenge)
@@ -264,8 +264,8 @@ def add_candidates(eid, cid):
 @app.route("/user/<eid>/challenges/<cid>/candidates", methods=["GET"])
 def view_candidates(eid, cid):
     try:
-        challenge = cid
-        employer = request.json['employer']
+        candidates = db.session.query(Candidate).filter(Candidate.assigned_challenge==cid)
+        return jsonify(candidate_schema.dump(candidates).data)
 
     except Exception as e:
         return(str(e))
