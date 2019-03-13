@@ -368,17 +368,15 @@ def login_page():
     try:
         username  = request.json['username']
         input_password = request.json['password']
-        print(username)
-        print(input_password)
         res = db.session.query(Employer.username, Employer.password).filter(Employer.username==username)
 
-        if res.count() != 1:
-            raise IncorrectCredentialsException
+        assert res.count() == 1
 
-        if sha256_crypt.verify(input_password, res.first().password):
+        res = res.first()
+        if sha256_crypt.verify(input_password, res.password):
             session['logged_in'] = True
             session['username'] = username
-            return jsonify(username = username,logged_in = True)
+            return jsonify(employer_schema.dump(res).data,logged_in = True)
         else:
             raise IncorrectCredentialsException
 
@@ -400,7 +398,7 @@ def reset_git_directory():
     with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
         for user in authdb.users:
             authdb.pop(user)
-            
+
 if __name__ == 'app':
     db.drop_all()
     db.create_all()
