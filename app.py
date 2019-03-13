@@ -11,7 +11,6 @@ from functools import wraps
 from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI
 from testifybackend.constants import (
     CHALLENGES_BASE_PATH,
-    CHALLENGES_REPOS,
     CHALLENGES_AUTH_FP,
     GIT,
     GIT_SERVER,
