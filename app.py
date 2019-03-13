@@ -83,7 +83,7 @@ class Employer(db.Model):
     last_modified = db.Column(db.DateTime())
     company = db.Column(db.String(120), db.ForeignKey(Company.name), nullable=True)
 
-    def __init__(self, username, email, password, f_name, l_name):
+    def __init__(self, username, email, password, f_name, l_name, company):
         self.username = username
         self.email = email
         self.password = password
@@ -91,10 +91,11 @@ class Employer(db.Model):
         self.l_name = l_name
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
+        self.company = company
 
 class EmployerSchema(ma.Schema):
     class Meta:
-        fields = ('username','email','f_name','l_name', 'last_modified')
+        fields = ('username','email','f_name','l_name', 'last_modified', 'company')
 
 employer_schema = EmployerSchema()
 
@@ -273,12 +274,14 @@ def create_challenge():
         company = employer.company
         username = employer.username
 
-        path = os.path.join(CHALLENGES_BASE_PATH, company, ("%s.%s", title, GIT))
+        repo_name = ("%s.%s" % (title, GIT))
+        path = os.path.join(CHALLENGES_BASE_PATH, company, repo_name)
         if os.path.exists(path):
             raise ChallengeRepositoryExistsException(path)
 
         Repo.init(path, bare=True)
-        repo_link = os.path.join(("http://%s@%s", username, GIT_SERVER), GIT, company, ("%s.%s", title, GIT))
+        repo_loc = ("http://%s@%s" % (username, GIT_SERVER))
+        repo_link = os.path.join(repo_loc, GIT, company, repo_name) 
 
         new_challenge = Challenge(creator, title, description, category, repo_link)
         db.session.add(new_challenge)
@@ -311,14 +314,16 @@ def register_user():
                 new_company = Company(company)
                 db.session.add(new_company)
                 db.session.commit()
-                os.makedir(os.path.join(CHALLENGES_BASE_PATH, company))
+                path = os.path.join(CHALLENGES_BASE_PATH, company)
+                if not os.path.exists(path):
+                    os.makedirs(os.path.join(CHALLENGES_BASE_PATH, company))
 
             new_employer = Employer(username, email, password, f_name, l_name, company)
             db.session.add(new_employer)
             db.session.commit()
 
-        with htpasswd.Basic(CHALLENGES_AUTH_FP) as db:
-            db.add(username, str(request.json['password']))
+        with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
+            authdb.add(username, str(request.json['password']))
 
         new_employer = db.session.query(Employer).filter(Employer.username==username).first()
         return jsonify(employer_schema.dump(new_employer).data)
