@@ -18,10 +18,11 @@ SQLALCHEMY_POOL_SIZE = 20
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 MAIL_SETTINGS = {
-    'MAIL_SERVER': 'mail.tstfy.co',
+    'MAIL_SERVER': 'mail.privateemail.com',
     'MAIL_PORT': 465,
+    'MAIL_DEFAULT_SENDER': 'hello@tstfy.co',
     'MAIL_USERNAME': 'hello@tstfy.co',
     'MAIL_PASSWORD': 'HsLOD3Nx7c0EZZDG0pT4',
     'MAIL_USE_TLS': False,
-    'MAIL_USE_SSL': False,
+    'MAIL_USE_SSL': True,
 }
