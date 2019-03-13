@@ -270,6 +270,8 @@ def view_candidates(eid, cid):
     except Exception as e:
         return(str(e))
 
+#TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
+
 #TODO: login_required
 @app.route("/user/<eid>/challenges/<challenge_id>/invite/<candidate_id>", methods=["POST"])
 def invite_candidates(eid, cid):
