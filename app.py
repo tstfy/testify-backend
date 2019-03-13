@@ -245,8 +245,7 @@ def create_comment():
 def get_challenges(eid):
     try:
         challenges = db.session.query(Challenge).filter(Challenge.employer_id==eid).filter(Challenge.deleted==False)
-
-        return jsonify(challenge_schema.dump(challenges).data)
+        return jsonify([challenge_schema.dump(challenge) for challenge in challenges])
 
     except Exception as e:
         return str(e)
@@ -332,26 +331,26 @@ def user_detail(id):
     return employer_schema.jsonify(user)
 
 
-@app.route("/user/<id>", methods=["PUT"])
-@login_required
-def user_update(id):
-    try:
-        user = Employer.query.get(id)
-        username = request.json['username']
-        email = request.json['email']
+# @app.route("/user/<id>", methods=["PUT"])
+# @login_required
+# def user_update(id):
+#     try:
+#         user = Employer.query.get(id)
+#         username = request.json['username']
+#         email = request.json['email']
 
-        if existing_username(username):
-            raise UsernameTakenException
+#         if existing_username(username):
+#             raise UsernameTakenException
 
-        user.email = email
-        user.username = username
-        user.last_modified = datetime.utcnow()
+#         user.email = email
+#         user.username = username
+#         user.last_modified = datetime.utcnow()
 
-        db.session.commit()
-        return employer_schema.jsonify(user)
+#         db.session.commit()
+#         return employer_schema.jsonify(user)
 
-    except Exception as e:
-        return(str(e))
+#     except Exception as e:
+#         return(str(e))
 
 @app.route("/user/<id>", methods=["DELETE"])
 @login_required
@@ -360,7 +359,7 @@ def user_delete(id):
     db.session.delete(user)
     db.session.commit()
 
-    return employer_schema.jsonify(user)
+    return jsonify(employer_schema.dump(user))
 
 
 @app.route("/login", methods=["POST"])
@@ -377,7 +376,7 @@ def login_page():
         if sha256_crypt.verify(input_password, res.password):
             session['logged_in'] = True
             session['username'] = username
-            return jsonify(employer_schema.dump(res).data,logged_in = True)
+            return jsonify(employer_schema.dump(res).data)
         else:
             raise IncorrectCredentialsException
 
