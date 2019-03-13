@@ -26,3 +26,7 @@ Shutdown the app
 
 `make kill`
 
+Remove virtual environment, and clean build files
+
+`make clean`
+
