@@ -369,15 +369,15 @@ def login_page():
         username  = request.json['username']
         input_password = request.json['password']
         res = db.session.query(Employer).filter(Employer.username==username)
-        if res.count() is 0:
+        if res.count() == 0:
             raise IncorrectCredentialsException
 
-        assert res.count() is 1
-
+        assert res.count() == 1
+        res = res.first()
         if sha256_crypt.verify(input_password, res.password):
             session['logged_in'] = True
             session['username'] = username
-            return jsonify(employer_schema.dump(res.first()).data,logged_in = True)
+            return jsonify(employer_schema.dump(res).data,logged_in = True)
         else:
             raise IncorrectCredentialsException
 
