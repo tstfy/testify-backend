@@ -9,7 +9,13 @@ from flask_marshmallow import Marshmallow
 from passlib.hash import sha256_crypt
 from functools import wraps
 from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI
-from testifybackend.constants import CHALLENGES_BASE_PATH, CHALLENGES_REPOS, GIT, GIT_SERVER
+from testifybackend.constants import (
+    CHALLENGES_BASE_PATH,
+    CHALLENGES_REPOS,
+    CHALLENGES_AUTH_FP,
+    GIT,
+    GIT_SERVER,
+)
 
 from testifybackend.classes.Exception import (
     AuthenticationRequiredException,
@@ -18,6 +24,8 @@ from testifybackend.classes.Exception import (
     ChallengeExistsException,
     ChallengeDirectoryExistsException
 )
+
+from git import Repo
 
 import htpasswd
 import os
@@ -258,7 +266,6 @@ def create_challenge():
         title = request.json['title']
         description = request.json['description']
         category = request.json['category']
-        # repo_link = "testrepolink" # TODO: custom repo link
 
         if existing_challenge(creator, title):
             raise ChallengeExistsException
@@ -266,17 +273,15 @@ def create_challenge():
         employer = db.session.query(Employer).filter(Employer.id==creator).first()
         company = employer.company
         username = employer.username
-        count = company_challenge_count(company)
 
-        path = os.path.join(CHALLENGES_BASE_PATH, company, count, CHALLENGES_REPOS)
+        path = os.path.join(CHALLENGES_BASE_PATH, company, ("%s.git", title))
         if os.path.exists(path):
             raise ChallengeDirectoryExistsException(path)
 
         # os.makedirs recursively makes directories, i.e. creates all intermediate dirs
         os.makedirs(path)
-        #TODO: make git repo at (path + challenge_title + .git)
 
-        repo_link = os.path.join(("http://%s@%s", username, GIT_SERVER), GIT, company, count, ("%s.git", title))
+        repo_link = os.path.join(("http://%s@%s", username, GIT_SERVER), GIT, company, ("%s.git", title))
 
         new_challenge = Challenge(creator, title, description, category, repo_link)
         db.session.add(new_challenge)
@@ -313,6 +318,9 @@ def register_user():
             new_employer = Employer(username, email, password, f_name, l_name, company)
             db.session.add(new_employer)
             db.session.commit()
+
+        with htpasswd.Basic(CHALLENGES_AUTH_FP) as db:
+            db.add(username, str(request.json['password']))
 
         new_employer = db.session.query(Employer).filter(Employer.username==username).first()
         return jsonify(employer_schema.dump(new_employer).data)

@@ -8,3 +8,5 @@ orderedmultidict >= 0.7
 future
 nose >= 1.1.2
 flask-cors
+GitPython
+htpasswd
