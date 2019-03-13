@@ -384,7 +384,7 @@ def login_page():
         if sha256_crypt.verify(input_password, res.first().password):
             session['logged_in'] = True
             session['username'] = username
-            return "LOGIN SUCCESS"
+            return jsonify(username = username,logged_in = True)
         else:
             raise IncorrectCredentialsException
 
