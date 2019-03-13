@@ -2,13 +2,19 @@ from datetime import datetime, timedelta
 
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
+from flask_mail import Mail, Message
 # from flask.ext.session import Session # TODO: maybe use this for session
 # from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from passlib.hash import sha256_crypt
 from functools import wraps
-from testifybackend.config import SECRET_KEY, SQLALCHEMY_DATABASE_URI, MAIL_SETTINGS
+from testifybackend.config import (
+    SECRET_KEY,
+    SQLALCHEMY_DATABASE_URI,
+    MAIL_SETTINGS,
+)
+
 from testifybackend.constants import (
     CHALLENGES_BASE_PATH,
     CHALLENGES_AUTH_FP,
@@ -34,8 +40,9 @@ app = Flask(__name__)
 app.secret_key = SECRET_KEY
 app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
 app.config.update(MAIL_SETTINGS)
-CORS(app)
 
+CORS(app)
+mail = Mail(app)
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
@@ -61,13 +68,17 @@ class Candidate(db.Model):
     l_name = db.Column(db.String(30), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
+    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id), nullable=True)
 
-    def __init__(self, email, f_name, l_name):
+    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
         self.email = email
+        self.username = username
+        self.password = password
         self.f_name = f_name
         self.l_name = l_name
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
+        self.assigned_challenge = assigned_challenge
 
 class CandidateSchema(ma.Schema):
     class Meta:
@@ -206,12 +217,66 @@ def existing_challenge(employer, title):
 def company_challenge_count(employer):
     return db.session.query(Challenge).filter(Challenge.employer_id==employer).count()
 
-@app.route("/challenges/<cid>/user/<uid>", methods=["POST"])
-def assign_challenge(cid, uid, eid):
+def create_unique_uname(email, f_name, l_name):
+#TODO: check db if email w/o domain exists in candidate table; if not create entry, otherwise generate unique entry by using f_name, l_name
+    try:
+        username = email.split("@")[0]
+        if not db.session.query(Candidate).filter(Candidate.username==username).count() is 0:
+            # username exists so need to make unique one from name
+            f_initial = f_name[0]
+            possible_collisions = db.session.query(Candidate).filter(Candidate.l_name==l_name).filter(Candidate.f_name.like(("%s%" % (f_initial)))).count()
+            if possible_collisions is 0:
+                username = f_initial + l_name
+            else:
+                username = ("%s%d%s" % (f_initial, possible_collisions, l_name))
+
+        return username
+
+    except Exception as e:
+        return(str(e))
+
+def create_candidate_pass(email):
+#TODO: generate random alphanumeric string of set length based on seed of email
+    pass
+
+#TODO: login_required
+@app.route("/user/<eid>/challenges/<cid>/candidates", methods=["POST"])
+def add_candidates(eid, cid):
+    try:
+        email = request.json['email']
+        f_name = request.json['f_name']
+        l_name = request.json['l_name']
+        username = create_unique_uname(email, f_name, l_name)
+        password = create_candidate_pass(email)
+        assigned_challenge = cid
+
+        new_candidate = Candidate(email, username, password, f_name, l_name, assigned_challenge)
+        db.session.add(new_candidate)
+        db.session.commit()
+
+        candidate_record = db.session.query(Candidate).filter(Candidate.email==email).first()
+        return jsonify(candidate_schema.dump(candidate_record).data)
+
+    except Exception as e:
+        return(str(e))
+
+#TODO: login_required
+@app.route("/user/<eid>/challenges/<cid>/candidates", methods=["GET"])
+def view_candidates(eid, cid):
+    try:
+        challenge = cid
+        employer = request.json['employer']
+
+    except Exception as e:
+        return(str(e))
+
+#TODO: login_required
+@app.route("/user/<eid>/challenges/<challenge_id>/invite/<candidate_id>", methods=["POST"])
+def invite_candidates(eid, cid):
+    #TODO: create repo object, repo link, creds in htpasswd and send emails here
     try:
         challenge = cid
         employer = eid
-        candidate = uid
 
         new_repository = Repository(employer, candidate, challenge)
         db.session.add(new_repository)
@@ -337,7 +402,7 @@ def register_user():
     except Exception as e:
         return(str(e))
 
-
+# TODO: need to add login_required wrapper
 @app.route("/user/<id>", methods=["GET"])
 def user_detail(id):
     user = db.session.query(Employer).filter(Employer.employer_id == id).first()
@@ -366,6 +431,7 @@ def user_detail(id):
 #     except Exception as e:
 #         return(str(e))
 
+# TODO: not sure if it will be supported, but consider cleanup if implemented
 @app.route("/user/<id>", methods=["DELETE"])
 @login_required
 def user_delete(id):

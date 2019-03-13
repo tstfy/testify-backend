@@ -10,3 +10,4 @@ nose >= 1.1.2
 flask-cors
 GitPython
 htpasswd
+Flask-Mail
