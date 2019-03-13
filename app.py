@@ -327,8 +327,8 @@ def register_user():
 
 @app.route("/user/<id>", methods=["GET"])
 def user_detail(id):
-    user = Employer.query.get(id)
-    return employer_schema.jsonify(user)
+    user = db.session.query(Employer).filter(Employer.employer_id==id)
+    return jsonify(employer_schema.dump(user).data)
 
 
 # @app.route("/user/<id>", methods=["PUT"])
