@@ -28,6 +28,7 @@ from git import Repo
 
 import htpasswd
 import os
+import shutil
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -381,4 +382,15 @@ def logout():
 if __name__ == 'app':
     db.drop_all()
     db.create_all()
+    reset_git_directory()
     app.run(debug=True)
+
+def reset_git_directory():
+    for d in os.listdir(CHALLENGES_BASE_PATH):
+        full_path = os.path.join(CHALLENGES_BASE_PATH, d)
+        if os.path.isdir(full_path):
+            shutil.rmtree(full_path)
+
+    with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
+        for user in authdb.users:
+            authdb.pop(user)
