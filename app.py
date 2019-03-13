@@ -245,8 +245,7 @@ def create_comment():
 def get_challenges(eid):
     try:
         challenges = db.session.query(Challenge).filter(Challenge.employer_id==eid).filter(Challenge.deleted==False)
-
-        return jsonify(challenge_schema.dump(challenges).data)
+        return jsonify([challenge_schema.dump(challenge) for challenge in challenges])
 
     except Exception as e:
         return str(e)
