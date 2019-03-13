@@ -21,7 +21,7 @@ from testifybackend.classes.Exception import (
     UsernameTakenException,
     IncorrectCredentialsException,
     ChallengeExistsException,
-    ChallengeDirectoryExistsException
+    ChallengeRepositoryExistsException
 )
 
 from git import Repo

@@ -18,7 +18,7 @@ class ChallengeExistsException(Exception):
     def __init__(self):
         super().__init__('Challenge with the given title exists for the employer')
 
-class ChallengeDirectoryExistsException(Exception):
+class ChallengeRepositoryExistsException(Exception):
 
     def __init__(self, path):
         super().__init__('Repository %s already exists', path)
