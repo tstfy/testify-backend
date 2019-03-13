@@ -101,8 +101,8 @@ class EmployerSchema(ma.Schema):
 employer_schema = EmployerSchema()
 
 class Challenge(db.Model):
-    employer = db.Column(db.Integer, db.ForeignKey(Employer.eid), primary_key=True)
     cid = db.Column(db.Integer, primary_key=True)
+    employer = db.Column(db.Integer, db.ForeignKey(Employer.eid))
     title = db.Column(db.String(80), nullable=False)
     description = db.Column(db.String(280))
     category = db.Column(db.String(80))
@@ -111,9 +111,8 @@ class Challenge(db.Model):
     repo_link = db.Column(db.String(140), nullable=False)
     deleted = db.Column(db.Boolean, default=False, unique=False)
 
-    def __init__(self, employer, cid, title, description, category, repo_link):
+    def __init__(self, employer, title, description, category, repo_link):
         self.employer = employer
-        self.cid = cid
         self.title = title
         self.description = description
         self.category = category
@@ -124,7 +123,7 @@ class Challenge(db.Model):
 class ChallengeSchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('employer', 'cid', 'title', 'description', 'category', 'repo_link')
+        fields = ('employer', 'title', 'description', 'category', 'repo_link')
 
 challenge_schema = ChallengeSchema()
 
@@ -265,8 +264,7 @@ def create_challenge():
         repo_loc = ("http://%s@%s" % (username, GIT_SERVER))
         repo_link = os.path.join(repo_loc, GIT, company, repo_name)
 
-        cid = company_challenge_count(employer)
-        new_challenge = Challenge(employer, cid, title, description, category, repo_link)
+        new_challenge = Challenge(employer, title, description, category, repo_link)
         db.session.add(new_challenge)
         db.session.commit()
 
@@ -380,8 +378,6 @@ def logout():
     session.clear()
     return "LOGOUT SUCCESS"
 
-
-# import pdb; pdb.set_trace()
 if __name__ == 'app':
     db.drop_all()
     db.create_all()
