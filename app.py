@@ -273,14 +273,12 @@ def create_challenge():
         company = employer.company
         username = employer.username
 
-        path = os.path.join(CHALLENGES_BASE_PATH, company, ("%s.git", title))
+        path = os.path.join(CHALLENGES_BASE_PATH, company, ("%s.%s", title, GIT))
         if os.path.exists(path):
-            raise ChallengeDirectoryExistsException(path)
+            raise ChallengeRepositoryExistsException(path)
 
-        # os.makedirs recursively makes directories, i.e. creates all intermediate dirs
-        os.makedirs(path)
-
-        repo_link = os.path.join(("http://%s@%s", username, GIT_SERVER), GIT, company, ("%s.git", title))
+        Repo.init(path, bare=True)
+        repo_link = os.path.join(("http://%s@%s", username, GIT_SERVER), GIT, company, ("%s.%s", title, GIT))
 
         new_challenge = Challenge(creator, title, description, category, repo_link)
         db.session.add(new_challenge)

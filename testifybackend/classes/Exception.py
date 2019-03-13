@@ -21,4 +21,4 @@ class ChallengeExistsException(Exception):
 class ChallengeDirectoryExistsException(Exception):
 
     def __init__(self, path):
-        super().__init__('Directory %s already exists', path)
+        super().__init__('Repository %s already exists', path)
