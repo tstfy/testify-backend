@@ -1,15 +1,13 @@
-.PHONY: install dev clean help
+.PHONY: env dev clean run kill help
 
-install:  ## install production dependencies
-	vendor/venv-update venv= -ppython3 .venv \
-	install= -r requirements.txt
+env:
+	python3 -m venv /home/testify/testify
 
-dev:  ## install development dependencies
-	pip3 install -r requirements.txt
+dev:
+	./dev.sh
 
 clean:  ## delete artifacts
-	rm -rf .venv
-	rm -rf .pytest_cache
+	rm -rf /home/testify/testify
 	find . -type f -name '*.py[co]' -delete
 	find . -type d -name '__pycache__' -delete
 
