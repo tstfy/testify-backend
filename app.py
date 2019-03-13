@@ -370,8 +370,7 @@ def login_page():
         input_password = request.json['password']
         res = db.session.query(Employer.username, Employer.password).filter(Employer.username==username)
 
-        if res.count() != 1:
-            raise IncorrectCredentialsException
+        assert res.count() == 1
 
         res = res.first()
         if sha256_crypt.verify(input_password, res.password):
