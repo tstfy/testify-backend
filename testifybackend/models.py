@@ -65,7 +65,9 @@ class Candidate(db.Model):
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
     assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id))
+    repo_link = db.Column(db.String(140), nullable=True, unique=True)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
+    invited = db.Column(db.Boolean, default=False)
 
     def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
         self.email = email
@@ -85,14 +87,10 @@ class Repository(db.Model):
     candidate_id = db.Column(db.Integer, db.ForeignKey(Candidate.candidate_id), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
-    repo_link = db.Column(db.String(140), nullable=False, unique=True)
-    invited = db.Column(db.Boolean, default=False)
 
-    def __init__(self, employer, candidate, challenge, repo_link, invited=False):
+    def __init__(self, employer, candidate, challenge):
         self.employer_id = employer
         self.candidate_id = candidate
         self.challenge_id = challenge
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
-        self.repo_link = repo_link
-        self.invited = invited

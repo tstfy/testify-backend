@@ -20,5 +20,5 @@ def reset_git_directory():
 
 db.drop_all()
 db.create_all()
-reset_git_directory()
+# reset_git_directory()
 app.run(debug=True)
