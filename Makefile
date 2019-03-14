@@ -19,3 +19,6 @@ run:
 
 kill:
 	pgrep flask | xargs sudo kill -9
+
+routes:
+	cat app.py | grep app.route | cut -d '"' -f2,4
