@@ -65,34 +65,6 @@ class CompanySchema(ma.Schema):
 
 company_schema = CompanySchema()
 
-class Candidate(db.Model):
-    candidate_id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    f_name = db.Column(db.String(30), nullable=False)
-    l_name = db.Column(db.String(30), nullable=False)
-    created = db.Column(db.DateTime())
-    last_modified = db.Column(db.DateTime())
-    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-
-    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
-        self.email = email
-        self.username = username
-        self.password = password
-        self.f_name = f_name
-        self.l_name = l_name
-        self.created = datetime.utcnow()
-        self.last_modified = datetime.utcnow()
-        self.assigned_challenge = assigned_challenge
-
-class CandidateSchema(ma.Schema):
-    class Meta:
-        fields = ('email','f_name','l_name', 'last_modified')
-
-candidate_schema = CandidateSchema()
-
 class Employer(db.Model):
     employer_id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -148,20 +120,33 @@ class ChallengeSchema(ma.Schema):
 
 challenge_schema = ChallengeSchema()
 
-
-class Comment(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.Integer, db.ForeignKey(Employer.employer_id))
-    message = db.Column(db.String(140))
+class Candidate(db.Model):
+    candidate_id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    f_name = db.Column(db.String(30), nullable=False)
+    l_name = db.Column(db.String(30), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
+    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
+    deleted = db.Column(db.Boolean, default=False, nullable=False)
 
-    def __init__(self, user, message, repository):
-        self.user = user
-        self.message = message
+    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
+        self.email = email
+        self.username = username
+        self.password = password
+        self.f_name = f_name
+        self.l_name = l_name
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
+        self.assigned_challenge = assigned_challenge
 
+class CandidateSchema(ma.Schema):
+    class Meta:
+        fields = ('email','f_name','l_name', 'last_modified')
+
+candidate_schema = CandidateSchema()
 
 class CommentSchema(ma.Schema):
     class Meta:
