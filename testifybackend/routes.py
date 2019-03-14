@@ -1,5 +1,6 @@
 from flask import request, jsonify, session
 from flask_mail import Message
+from passlib.hash import sha256_crypt
 from functools import wraps
 from testifybackend.constants import (
     CHALLENGES_BASE_PATH,
