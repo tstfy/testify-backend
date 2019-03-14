@@ -7,7 +7,6 @@ from testifybackend.constants import (
     GIT,
     GIT_SERVER,
 )
-
 from testifybackend.models import (
     Candidate,
     Employer,
@@ -15,7 +14,6 @@ from testifybackend.models import (
     Repository,
     Company,
 )
-
 from testifybackend.schemas import (
     CompanySchema,
     EmployerSchema,
@@ -23,7 +21,6 @@ from testifybackend.schemas import (
     CandidateSchema,
     RepositorySchema,
 )
-
 from testifybackend.exceptions import (
     AuthenticationRequiredException,
     UsernameTakenException,
@@ -36,8 +33,7 @@ from testifybackend.exceptions import (
     InvalidChallengeException,
     CandidateInvitedException
 )
-
-from testifybackend.app import db
+from . import db, mail, app
 from git import Repo
 
 import htpasswd

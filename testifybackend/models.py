@@ -1,6 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from testifybackend.app import db
+from . import db
 
 class Company(db.Model):
     company_id = db.Column(db.Integer, primary_key=True)

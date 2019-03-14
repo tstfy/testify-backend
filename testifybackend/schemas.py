@@ -1,4 +1,4 @@
-from testifybackend.app import ma
+from . import ma
 
 class CompanySchema(ma.Schema):
     class Meta:
