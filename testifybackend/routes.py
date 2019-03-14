@@ -198,21 +198,23 @@ def create_candidate_repo(challenge_repo, candidate, res):
     candidate_repo_link = os.path.join(candidate_repo_loc, GIT, res.company, res.title, candidate_repo_name)
 
     # clone repo
-    candidate_repo = challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, candidate_repo_name))
-    new_repo = Repository(res.employer_id, candidate.candidate_id, res.challenge_id, candidate_repo_link, invited=True)
+    challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, candidate_repo_name))
+    new_repo = Repository(res.employer_id, candidate.candidate_id, res.challenge_id)
     db.session.add(new_repo)
-    db.session.commit()
+
+    # update Candidate record
+    candidate_record = db.sesion.query(Candidate).get(candidate.candidate_id)
+    candidate_record.repo_link = candidate_repo_link
 
 def add_to_htpasswd(candidate):
     with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
         authdb.add(candidate.username, candidate.password)
 
-def send_email_to_candidate(conn, cinfo):
-    f_name, l_name, email = cinfo['FirstName'], cinfo['LastName'], cinfo['Email']
-    username, password = cinfo['Username'], cinfo['Password']
-    message = ("TESTING\nusername: %s\npassword: %s" % (username, password))
-    subject = ("Hello, %s %s" % (f_name, l_name))
-    msg = Message(recipients=[email], body=message, subject=subject)
+def send_email_to_candidate(conn, c, res):
+    c.invited = True
+    message = ("TESTING\nusername: %s\npassword: %s\nlink to repo: %s" % (c.username, c.password, c.repo_link))
+    subject = ("Hello %s %s, new challenge %s sent from %s" % (c.f_name, c.l_name, res.title, res.company))
+    msg = Message(recipients=[c.email], body=message, subject=subject)
     conn.send(msg)
 
 # TODO: login_required
@@ -232,13 +234,11 @@ def invite_candidates(challenge_id):
         res = res.first()
         cid = res.challenge_id
         orig_repo_name = ("%s.%s" % (res.title, GIT))
-        # orig_repo_loc = ("http://%s@%s" % (employer.username, GIT_SERVER))
-        # orig_repo_link = os.path.join(orig_repo_loc, GIT, company, orig_repo_name)
 
         challenge_repo = Repo(os.path.join(CHALLENGES_BASE_PATH, res.company, orig_repo_name))
         error_candidates = []
 
-        for candidate_id in candidate_ids:
+        for candidate_id in set(list(candidate_ids)):
             # check that candidate belongs to challenge
             candidate = db.session.query(Candidate).get(candidate_id)
             if candidate is None:
@@ -261,19 +261,20 @@ def invite_candidates(challenge_id):
             # enter candidate into htpasswd
             add_to_htpasswd(candidate)
 
+        db.session.commit()
+
         # send emails to candidates
         contact_candidates = set(candidate_ids) - set(error_candidates)
-        res = db.session.query(Candidate)\
+        candidates = db.session.query(Candidate)\
                         .filter(Candidate.candidate_id.in_(contact_candidates))
-        candidate_infos = [{'FirstName': c.f_name,
-                            'LastName': c.l_name,
-                            'Email': c.email,
-                            'Username': c.username,
-                            'Password': c.password} for c in res]
 
         with mail.connect() as conn:
-            for candidate_info in candidate_infos:
-                send_email_to_candidate(conn, candidate_info)
+            for candidate in candidates:
+                if candidate.invited:
+                    continue
+                send_email_to_candidate(conn, candidate, res)
+
+        db.session.commit()
 
         # return all new repos created
         if error_candidates:
