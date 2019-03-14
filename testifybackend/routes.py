@@ -171,6 +171,7 @@ def invite_candidates(challenge_id):
             raise InvalidChallengeException(challenge_id)
 
         res = res.first()
+        cid = res.challenge_id
         company = res.company
         orig_repo_name = ("%s.%s" % (res.title, GIT))
         # orig_repo_loc = ("http://%s@%s" % (employer.username, GIT_SERVER))
@@ -181,14 +182,12 @@ def invite_candidates(challenge_id):
 
         for candidate_id in candidate_ids:
             # check that candidate belongs to challenge
-            res = db.session.query(Candidate).get(candidate_id)
-            if res is None:
+            candidate = db.session.query(Candidate).get(candidate_id)
+            if candidate is None:
                 error_candidates.append(candidate_id)
                 continue
 
-            candidate = res.first()
-
-            if not candidate.assigned_challenge == challenge_id:
+            if not str(candidate.assigned_challenge) == challenge_id:
                 error_candidates.append(candidate_id)
                 continue
 
@@ -213,19 +212,14 @@ def invite_candidates(challenge_id):
                 authdb.add(candidate.username, candidate.password)
 
         # send emails to candidates
-        contact_candidates = candidate_ids - error_candidates
-        query = db.session.query(Candidate.f_name,
-                                 Candidate.l_name,
-                                 Candidate.email,
-                                 Candidate.username,
-                                 Candidate.password).filter(Candidate.candidate_id.in_(contact_candidates))
-
-        candidate_rows = jsonify([candidate_schema.dump(candidate) for candidate in query.all()])
+        # error_candidates = [int(x) for x in error_candidates]
+        contact_candidates = set(candidate_ids) - set(error_candidates)
+        res = db.session.query(Candidate).filter(Candidate.candidate_id.in_(contact_candidates))
         candidate_infos = [{'FirstName': c.f_name,
                             'LastName': c.l_name,
                             'Email': c.email,
                             'Username': c.username,
-                            'Password': c.password} for c in candidate_rows]
+                            'Password': c.password} for c in res]
 
         with mail.connect() as conn:
             for candidate_info in candidate_infos:
@@ -242,7 +236,7 @@ def invite_candidates(challenge_id):
         if error_candidates:
             raise InvalidCandidateException(*candidate_ids)
 
-        new_repos = db.session.query(Repository).filter(Repository.challenge_id==challenge.challenge_id)
+        new_repos = db.session.query(Repository).filter(Repository.challenge_id==cid)
         return jsonify([repository_schema.dump(repository) for repository in new_repos])
 
     except Exception as e:
