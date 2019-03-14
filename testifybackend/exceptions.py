@@ -37,10 +37,10 @@ class InvalidCandidateException(Exception):
     def __init__(self, *candidate_ids):
         super().__init__('Candidate id(s) provided %s is/are invalid and invite failed for those id(s)' % candidate_ids)
 
-class CandidateInvitedException(Exception):
+# class CandidateInvitedException(Exception):
 
-    def __init__(self, candidate_id, challenge):
-        super().__init__('Candidate id provided (%s) is already invited to challenge (%s)' % (candidate_id, challenge))
+#     def __init__(self, candidate_id, challenge):
+#         super().__init__('Candidate id provided (%s) is already invited to challenge (%s)' % (candidate_id, challenge))
 
 class AlreadyDeletedException(Exception):
 

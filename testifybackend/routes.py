@@ -32,7 +32,6 @@ from testifybackend.exceptions import (
     AlreadyDeletedException,
     CandidateExistsException,
     InvalidChallengeException,
-    CandidateInvitedException,
     InvalidEmployerException
 )
 from . import db, mail, app
@@ -109,7 +108,7 @@ def add_candidates(challenge_id):
         l_name = request.json['l_name']
 
         if not db.session.query(Candidate).filter(Candidate.email==email).count() == 0:
-            raise CandidateExistsException
+            raise CandidateExistsException(email)
 
         username = create_unique_uname(email, f_name, l_name)
         password = create_candidate_pass()
