@@ -74,7 +74,7 @@ class Candidate(db.Model):
     l_name = db.Column(db.String(30), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
-    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.id), nullable=True)
+    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
@@ -367,7 +367,7 @@ def invite_candidates(challenge_id):
                                  Candidate.l_name,
                                  Candidate.email,
                                  Candidate.username,
-                                 Candidate.password).filter(Candidate.id.in_(contact_candidates))
+                                 Candidate.password).filter(Candidate.candidate_id.in_(contact_candidates))
 
         candidate_rows = jsonify([candidate_schema.dump(candidate) for candidate in query.all()])
         candidate_infos = [{'FirstName': c.f_name,
