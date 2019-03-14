@@ -3,18 +3,10 @@ from testifybackend.constants import (
     CHALLENGES_AUTH_FP,
     CHALLENGES_BASE_PATH,
 )
-from instance.config import (
-    SQLALCHEMY_DATABASE_URI,
-    SECRET_KEY,
-    MAIL_SETTINGS,
-)
+
 import os
 import htpasswd
 import shutil
-
-app.secret_key = SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-app.config.update(MAIL_SETTINGS)
 
 def reset_git_directory():
     for d in os.listdir(CHALLENGES_BASE_PATH):
