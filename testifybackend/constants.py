@@ -1,5 +1,5 @@
 CHALLENGES_BASE_PATH = "/var/www/git"
 CHALLENGES_AUTH_FP = "/var/www/git/htpasswd"
 GIT = "git"
-GIT_SERVER = "beta.tstfy.co"
+GIT_SERVER = "tstfy.co"
 APP_NAME = "testify"
