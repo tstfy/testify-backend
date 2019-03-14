@@ -247,9 +247,9 @@ def invite_candidates(challenge_id):
     except Exception as e:
         return(str(e))
 
-@app.route("/challenges", methods=["GET"])
+@app.route("/challenges/eid", methods=["GET"])
 # @authorization
-def get_challenges():
+def get_challenges(eid):
     try:
         eid = request.args.get("eid")
         challenges = db.session.query(Challenge)\
