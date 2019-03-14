@@ -1,4 +1,4 @@
-from testifybackend import create_app, db
+from testifybackend import db, app
 from testifybackend.constants import (
     CHALLENGES_AUTH_FP,
     CHALLENGES_BASE_PATH,
@@ -22,6 +22,4 @@ def reset_git_directory():
 db.drop_all()
 db.create_all()
 reset_git_directory()
-
-app = create_app()
 app.run(debug=True)
