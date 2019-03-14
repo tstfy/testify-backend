@@ -32,7 +32,8 @@ from testifybackend.exceptions import (
     AlreadyDeletedException,
     CandidateExistsException,
     InvalidChallengeException,
-    CandidateInvitedException
+    CandidateInvitedException,
+    InvalidEmployerException
 )
 from . import db, mail, app
 from git import Repo
@@ -82,7 +83,7 @@ def create_unique_uname(email, f_name, l_name):
 # check db if email w/o domain exists in candidate table; if not create entry, otherwise generate unique entry by using f_name, l_name
     try:
         username = email.split("@")[0]
-        if not db.session.query(Candidate).filter(Candidate.username==username).count() is 0:
+        if not db.session.query(Candidate).filter(Candidate.username==username).count() == 0:
             # username exists so need to make unique one from name
             f_initial = f_name[0]
             possible_collisions = db.session.query(Candidate).filter(Candidate.l_name==l_name).filter(Candidate.f_name.like(("%s%" % (f_initial)))).count()
@@ -110,7 +111,7 @@ def add_candidates(eid, challenge_id):
         password = create_candidate_pass()
         assigned_challenge = challenge_id
 
-        if not db.session.query(Candidate).filter(Candidate.email==email).count() is 0:
+        if not db.session.query(Candidate).filter(Candidate.email==email).count() == 0:
             raise CandidateExistsException
 
         new_candidate = Candidate(email, username, password, f_name, l_name, assigned_challenge)
@@ -138,7 +139,7 @@ def get_candidates(cid):
 def delete_candidate(challenge_id, candidate_id):
     try:
         res = db.session.query(Candidate).get(candidate_id)
-        if not res.count() is 1 :
+        if not res.count() == 1 :
             raise InvalidCandidateException(candidate_id)
 
         res = res.first()
@@ -336,11 +337,13 @@ def register_user():
         return(str(e))
 
 # TODO: need to add login_required wrapper
-@app.route("/user/<id>", methods=["GET"])
-def user_detail(id):
-    user = db.session.query(Employer).filter(Employer.employer_id == id).first()
+@app.route("/user/<eid>", methods=["GET"])
+def user_detail(eid):
+    user = Employer.query.get(eid)
+    if user is None:
+        raise InvalidEmployerException(eid)
     data = employer_schema.dump(user).data
-    return jsonify({"data": construct_data("user", id, data)})
+    return jsonify({"data": construct_data("user", eid, data)})
 
 
 # @app.route("/user/<id>", methods=["PUT"])
@@ -365,10 +368,12 @@ def user_detail(id):
 #         return(str(e))
 
 # TODO: not sure if it will be supported, but consider cleanup if implemented
-@app.route("/user/<id>", methods=["DELETE"])
+@app.route("/user/<eid>", methods=["DELETE"])
 @login_required
-def user_delete(id):
-    user = Employer.query.get(id)
+def user_delete(eid):
+    user = Employer.query.get(eid)
+    if user is None:
+        raise InvalidEmployerException(eid)
     user.deleted = True
     db.session.commit()
 
