@@ -257,7 +257,7 @@ def get_challenges():
                                .filter(Challenge.employer_id==eid)\
                                .filter(Challenge.deleted==False)
         data = [challenge_schema.dump(challenge).data for challenge in challenges]
-        json_data = [construct_data("challenges", int(d["challenges_id"], d)) for d in data]
+        json_data = [construct_data("challenges", int(d["challenge_id"]), d) for d in data]
         return jsonify({"data": json_data})
 
     except Exception as e:
@@ -342,7 +342,7 @@ def register_user():
 def user_detail(id):
     user = db.session.query(Employer).filter(Employer.employer_id == id).first()
     data = employer_schema.dump(user).data
-    return jsonify("data":construct_data(data))
+    return jsonify({"data": construct_data("user", id, data)})
 
 
 # @app.route("/user/<id>", methods=["PUT"])
