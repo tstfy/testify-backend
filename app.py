@@ -125,7 +125,7 @@ class Challenge(db.Model):
 class ChallengeSchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('employer_id', 'title', 'description', 'category', 'repo_link')
+        fields = ('challenge_id', 'employer_id', 'title', 'description', 'category', 'repo_link')
 
 challenge_schema = ChallengeSchema()
 
@@ -173,6 +173,14 @@ class RepositorySchema(ma.Schema):
         fields = ('repository_id', 'employer_id', 'candidate_id', 'challenge_id', 'last_modified')
 
 repository_schema = RepositorySchema()
+
+
+def construct_data(endpoint, id, data):
+    return {
+            "type": endpoint,
+            "id": id,
+            "attributes": data
+    }
 
 
 def login_required(f):
@@ -240,12 +248,17 @@ def create_comment():
     except Exception as e:
         return(str(e))
 
-@app.route("/challenges/<eid>", methods=["GET"])
+@app.route("/challenges", methods=["GET"])
 # @authorization
-def get_challenges(eid):
+def get_challenges():
     try:
-        challenges = db.session.query(Challenge).filter(Challenge.employer_id==eid).filter(Challenge.deleted==False)
-        return jsonify([challenge_schema.dump(challenge) for challenge in challenges])
+        eid = request.args.get("eid")
+        challenges = db.session.query(Challenge)\
+                               .filter(Challenge.employer_id==eid)\
+                               .filter(Challenge.deleted==False)
+        data = [challenge_schema.dump(challenge).data for challenge in challenges]
+        json_data = [construct_data("challenges", int(d["challenge_id"]), d) for d in data]
+        return jsonify({"data": json_data})
 
     except Exception as e:
         return str(e)
@@ -328,7 +341,8 @@ def register_user():
 @app.route("/user/<id>", methods=["GET"])
 def user_detail(id):
     user = db.session.query(Employer).filter(Employer.employer_id == id).first()
-    return jsonify(employer_schema.dump(user).data)
+    data = employer_schema.dump(user).data
+    return jsonify({"data": construct_data("user", id, data)})
 
 
 # @app.route("/user/<id>", methods=["PUT"])
