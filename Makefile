@@ -21,4 +21,4 @@ kill:
 	pgrep flask | xargs sudo kill -9
 
 routes:
-	cat app.py | grep app.route | cut -d '"' -f2,4
+	cat testifybackend/routes.py | grep app.route | cut -d '"' -f2,4

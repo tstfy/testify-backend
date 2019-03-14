@@ -9,27 +9,6 @@ class Company(db.Model):
     def __init__(self, name):
         self.name = name
 
-class Candidate(db.Model):
-    candidate_id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    f_name = db.Column(db.String(30), nullable=False)
-    l_name = db.Column(db.String(30), nullable=False)
-    created = db.Column(db.DateTime())
-    last_modified = db.Column(db.DateTime())
-    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-
-    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
-        self.email = email
-        self.username = username
-        self.password = password
-        self.f_name = f_name
-        self.l_name = l_name
-        self.created = datetime.utcnow()
-        self.last_modified = datetime.utcnow()
-        self.assigned_challenge = assigned_challenge
 
 class Employer(db.Model):
     employer_id = db.Column(db.Integer, primary_key=True)
@@ -72,6 +51,28 @@ class Challenge(db.Model):
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
         self.repo_link = repo_link
+
+class Candidate(db.Model):
+    candidate_id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    f_name = db.Column(db.String(30), nullable=False)
+    l_name = db.Column(db.String(30), nullable=False)
+    created = db.Column(db.DateTime())
+    last_modified = db.Column(db.DateTime())
+    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
+    deleted = db.Column(db.Boolean, default=False, nullable=False)
+
+    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
+        self.email = email
+        self.username = username
+        self.password = password
+        self.f_name = f_name
+        self.l_name = l_name
+        self.created = datetime.utcnow()
+        self.last_modified = datetime.utcnow()
+        self.assigned_challenge = assigned_challenge
 
 class Repository(db.Model):
     repository_id = db.Column(db.Integer, primary_key=True)

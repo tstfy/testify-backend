@@ -20,3 +20,5 @@ db = SQLAlchemy(app)
 ma = Marshmallow(app)
 mail = Mail(app)
 CORS(app)
+
+from . import routes
