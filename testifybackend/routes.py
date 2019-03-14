@@ -102,7 +102,7 @@ def create_candidate_pass():
 
 #TODO: login_required
 @app.route("/challenges/<challenge_id>/candidates", methods=["POST"])
-def add_candidates(eid, challenge_id):
+def add_candidates(challenge_id):
     try:
         email = request.json['email']
         f_name = request.json['f_name']
