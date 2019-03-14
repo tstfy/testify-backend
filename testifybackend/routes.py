@@ -42,6 +42,7 @@ import os
 import shutil
 import uuid
 import subprocess
+import errno
 
 company_schema = CompanySchema()
 employer_schema = EmployerSchema()
@@ -204,13 +205,24 @@ def delete_candidate(challenge_id, candidate_id):
 
 # TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
 
-def create_candidate_repo(challenge_repo, candidate, res):
+def copy_repo(src, dst):
+    try:
+        shutil.copytree(src, dst)
+    except OSError as exc: # python >2.5
+        if exc.errno == errno.ENOTDIR:
+            shutil.copy(src, dst)
+        else:
+            raise
+
+def create_candidate_repo(employer_repo, candidate, res):
     candidate_repo_name = ("%s.%s" % (candidate.username, GIT))
     candidate_repo_loc = ("http://%s@%s" % (candidate.username, GIT_SERVER))
     candidate_repo_link = os.path.join(candidate_repo_loc, GIT, res.company, res.title, candidate_repo_name)
 
-    # clone repo
-    challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, candidate_repo_name))
+    # copy repo
+    candidate_repo = os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, candidate_repo_name)
+    copy_repo(employer_repo, candidate_repo)
+    # challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, candidate_repo_name))
     new_repo = Repository(res.employer_id, candidate.candidate_id, res.challenge_id)
     db.session.add(new_repo)
 
@@ -247,7 +259,7 @@ def invite_candidates(challenge_id):
         cid = res.challenge_id
         orig_repo_name = ("%s.%s" % (res.title, GIT))
 
-        challenge_repo = Repo(os.path.join(CHALLENGES_BASE_PATH, res.company, orig_repo_name))
+        employer_repo = os.path.join(CHALLENGES_BASE_PATH, res.company, orig_repo_name)
         error_candidates = []
 
         for candidate_id in set(list(candidate_ids)):
@@ -268,7 +280,7 @@ def invite_candidates(challenge_id):
                 error_candidates.append(candidate_id)
                 continue
 
-            create_candidate_repo(challenge_repo, candidate, res)
+            create_candidate_repo(employer_repo, candidate, res)
 
             # enter candidate into htpasswd
             add_to_htpasswd(candidate)
