@@ -101,15 +101,15 @@ def create_candidate_pass():
     return uuid.uuid4()
 
 #TODO: login_required
-@app.route("/challenges/<challenge_id>/candidates", methods=["POST"])
-def add_candidates(challenge_id):
+@app.route("/challenges/<challengeid>/candidates", methods=["POST"])
+def add_candidates(challengeid):
     try:
         email = request.json['email']
         f_name = request.json['f_name']
         l_name = request.json['l_name']
         username = create_unique_uname(email, f_name, l_name)
         password = create_candidate_pass()
-        assigned_challenge = challenge_id
+        assigned_challenge = challengeid
 
         if not db.session.query(Candidate).filter(Candidate.email==email).count() == 0:
             raise CandidateExistsException
