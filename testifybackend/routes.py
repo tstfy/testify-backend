@@ -203,7 +203,7 @@ def create_candidate_repo(challenge_repo, candidate, res):
     db.session.add(new_repo)
 
     # update Candidate record
-    candidate_record = db.sesion.query(Candidate).get(candidate.candidate_id)
+    candidate_record = db.session.query(Candidate).get(candidate.candidate_id)
     candidate_record.repo_link = candidate_repo_link
 
 def add_to_htpasswd(candidate):
