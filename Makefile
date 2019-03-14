@@ -18,7 +18,7 @@ run:
 	./run.sh
 
 kill:
-	pgrep python | xargs sudo kill -9
+	ps aux | grep flask | grep -v 5100 | awk '{print $2}' | head -n1 | xargs sudo kill -9
 
 routes:
 	cat testifybackend/routes.py | grep app.route | cut -d '"' -f2,4
