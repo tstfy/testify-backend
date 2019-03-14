@@ -41,6 +41,7 @@ import htpasswd
 import os
 import shutil
 import uuid
+import subprocess
 
 company_schema = CompanySchema()
 employer_schema = EmployerSchema()
@@ -347,6 +348,7 @@ def create_challenge():
 
         Repo.init(path, bare=True)
         _chown(path, 1005, 33)
+        subprocess.call(['sudo', 'chmod', '-R', '777', path])
         repo_loc = ("http://%s@%s" % (username, GIT_SERVER))
         repo_link = os.path.join(repo_loc, GIT, company, repo_name)
 
