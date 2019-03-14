@@ -1,5 +1,6 @@
-from flask import request, jsonify, session
+from flask import request, jsonify, session, make_response
 from flask_mail import Message
+from flask_api import status
 from passlib.hash import sha256_crypt
 from functools import wraps
 from testifybackend.constants import (
@@ -148,10 +149,11 @@ def add_candidates(challenge_id):
         candidate_record = db.session.query(Candidate)\
                                      .filter(Candidate.email == email)\
                                      .first()
-        return jsonify(candidate_schema.dump(candidate_record))
+
+        return make_response(jsonify(candidate_schema.dump(candidate_record)), status.HTTP_201_CREATED)
 
     except Exception as e:
-        return(str(e))
+        return make_response(e._jsonify(), status.HTTP_409_CONFLICT)
 
 
 # TODO: login_required
@@ -159,16 +161,20 @@ def add_candidates(challenge_id):
 def get_candidates():
     try:
         challenge_id = request.args.get("cid")
+        res = db.session.query(Challenge).get(challenge_id)
+        if res is None:
+            raise InvalidChallengeException(challenge_id)
+
         candidates = db.session.query(Candidate)\
                                .filter(Candidate.assigned_challenge == challenge_id)\
                                .filter(Candidate.deleted == False)
 
         data = [candidate_schema.dump(candidate).data for candidate in candidates]
         json_data = [construct_data("candidates", int(d["candidate_id"]), d) for d in data]
-        return jsonify({"data": json_data})
+        return make_response(jsonify({"data": json_data}), status.HTTP_200_OK)
 
     except Exception as e:
-        return(str(e))
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
 
 
 # TODO: login_required
@@ -187,8 +193,11 @@ def delete_candidate(challenge_id, candidate_id):
         db.session.commit()
         return jsonify(candidate_schema.dump(res))
 
-    except Exception as e:
-        return(str(e))
+    except InvalidCandidateException as e:
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
+
+    except AlreadyDeletedException as e:
+        return make_response(e._jsonify(), status.HTTP_410_GONE)
 
 # TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
 
@@ -280,7 +289,7 @@ def invite_candidates(challenge_id):
             raise InvalidCandidateException(*candidate_ids)
 
         new_repos = db.session.query(Repository).filter(Repository.challenge_id==cid)
-        return jsonify([repository_schema.dump(repository) for repository in new_repos])
+        return make_response(jsonify([repository_schema.dump(repository) for repository in new_repos]), status.HTTP_201_CREATED)
 
     except Exception as e:
         return(str(e))
@@ -300,10 +309,10 @@ def get_challenges():
                                .filter(Challenge.deleted == False)
         data = [challenge_schema.dump(challenge).data for challenge in challenges]
         json_data = [construct_data("challenges", int(d["challenge_id"]), d) for d in data]
-        return jsonify({"data": json_data})
+        return make_response(jsonify({"data": json_data}), status.HTTP_200_OK)
 
     except Exception as e:
-        return str(e)
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
 
 
 @app.route("/challenges", methods=["POST"])
@@ -346,10 +355,14 @@ def create_challenge():
                                   .filter(Challenge.employer_id == employer)\
                                   .filter(Challenge.title == title)\
                                   .first()
-        return jsonify(challenge_schema.dump(new_challenge).data)
 
-    except Exception as e:
-        return(str(e))
+        return make_respose(jsonify(challenge_schema.dump(new_challenge).data), status.HTTP_201_CREATED)
+
+    except InvalidEmployerException as e:
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
+
+    except (ChallengeExistsException, ChallengeRepositoryExistsException) as e:
+        return make_response(e._jsonify(), status.HTTP_409_CONFLICT)
 
 
 @app.route("/users", methods=["POST"])
@@ -388,23 +401,27 @@ def register_user():
         new_employer = db.session.query(Employer)\
                                  .filter(Employer.username == username)\
                                  .first()
-        return jsonify(employer_schema.dump(new_employer).data)
+
+        return make_response(jsonify(employer_schema.dump(new_employer).data), status.HTTP_201_CREATED)
 
     except Exception as e:
-        return(str(e))
+        return make_response(e._jsonify(), status.HTTP_409_CONFLICT)
 
 
 # TODO: need to add login_required wrapper
 @app.route("/user", methods=["GET"])
 def user_detail():
-    eid = request.args.get("eid")
-    user = Employer.query.get(eid)
-    if user is None:
-        raise InvalidEmployerException(eid)
+    try:
+        eid = request.args.get("eid")
+        user = Employer.query.get(eid)
+        if user is None:
+            raise InvalidEmployerException(eid)
 
-    data = employer_schema.dump(user).data
-    return jsonify({"data": construct_data("user", eid, data)})
+        data = employer_schema.dump(user).data
+        return make_response(jsonify({"data": construct_data("user", eid, data)}), status.HTTP_200_OK)
 
+    except Exception as e:
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
 
 # @app.route("/user/<id>", methods=["PUT"])
 # @login_required
@@ -431,13 +448,17 @@ def user_detail():
 @app.route("/user/<eid>", methods=["DELETE"])
 @login_required
 def user_delete(eid):
-    user = Employer.query.get(eid)
-    if user is None:
-        raise InvalidEmployerException(eid)
-    user.deleted = True
-    db.session.commit()
+    try:
+        user = Employer.query.get(eid)
+        if user is None:
+            raise InvalidEmployerException(eid)
+        user.deleted = True
+        db.session.commit()
 
-    return jsonify(employer_schema.dump(user))
+        return make_response(jsonify(employer_schema.dump(user)), status.HTTP_200_OK)
+
+    except Exception as e:
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
 
 
 @app.route("/login", methods=["POST"])
@@ -454,12 +475,12 @@ def login_page():
         if sha256_crypt.verify(input_password, res.password):
             session['logged_in'] = True
             session['username'] = username
-            return jsonify(employer_schema.dump(res).data)
+            return make_response(jsonify(employer_schema.dump(res).data), status.HTTP_200_OK)
         else:
             raise IncorrectCredentialsException
 
     except Exception as e:
-        return(str(e))
+        return make_response(e._jsonify(), status.HTTP_401_UNAUTHORIZED)
 
 
 @app.route("/logout", methods=["POST"])

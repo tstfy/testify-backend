@@ -11,3 +11,4 @@ flask-cors
 GitPython
 htpasswd
 Flask-Mail
+Flask-API
