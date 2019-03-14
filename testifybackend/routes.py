@@ -140,7 +140,7 @@ def get_candidates(cid):
 def delete_candidate(challenge_id, candidate_id):
     try:
         res = db.session.query(Candidate).get(candidate_id)
-        if not res.count() == 1 :
+        if res is None:
             raise InvalidCandidateException(candidate_id)
 
         res = res.first()
@@ -164,7 +164,7 @@ def invite_candidates(challenge_id):
         candidate_ids = request.json['candidate_ids']
 
         res = db.session.query(Employer).join(Challenge)\
-            .add_columns(Employer.employer_id, Challenge.challenge_id, Challenge.title)\
+            .add_columns(Employer.employer_id, Employer.company, Challenge.challenge_id, Challenge.title)\
             .filter(Employer.employer_id==eid)\
             .filter(Challenge.challenge_id==challenge_id)
         if not res.count() == 1:
@@ -182,7 +182,7 @@ def invite_candidates(challenge_id):
         for candidate_id in candidate_ids:
             # check that candidate belongs to challenge
             res = db.session.query(Candidate).get(candidate_id)
-            if not res.count() == 1:
+            if res is None:
                 error_candidates.append(candidate_id)
                 continue
 
