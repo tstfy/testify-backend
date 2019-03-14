@@ -400,5 +400,3 @@ def login_page():
 def logout():
     session.clear()
     return "LOGOUT SUCCESS"
-
-launch()
