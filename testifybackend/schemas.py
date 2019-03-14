@@ -18,7 +18,7 @@ class ChallengeSchema(ma.Schema):
 
 class CandidateSchema(ma.Schema):
     class Meta:
-        fields = ('email','f_name','l_name', 'last_modified')
+        fields = ('candidate_id', 'email','f_name','l_name', 'last_modified')
 
 class RepositorySchema(ma.Schema):
     class Meta:

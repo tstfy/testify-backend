@@ -100,7 +100,7 @@ def create_candidate_pass():
     return uuid.uuid4()
 
 #TODO: login_required
-@app.route("/challenges/<challenge_id>/candidates", methods=["PUT"])
+@app.route("/challenges/<challenge_id>/candidates", methods=["POST"])
 def add_candidates(challenge_id):
     try:
         email = request.json['email']
@@ -163,16 +163,16 @@ def invite_candidates(challenge_id):
         eid = request.json['employer_id']
         candidate_ids = request.json['candidate_ids']
 
-        res = db.session.query(Employer).join(Challenge).filter(Employer.employer_id==eid).filter(Challenge.challenge_id==challenge_id)
+        res = db.session.query(Employer).join(Challenge)\
+            .add_columns(Employer.employer_id, Challenge.challenge_id, Challenge.title)\
+            .filter(Employer.employer_id==eid)\
+            .filter(Challenge.challenge_id==challenge_id)
         if not res.count() == 1:
             raise InvalidChallengeException(challenge_id)
 
         res = res.first()
-        employer = employer_schema.dump(res)
-        challenge = challenge_schema.dump(res)
-
-        company = employer.company
-        orig_repo_name = ("%s.%s" % (challenge.title, GIT))
+        company = res.company
+        orig_repo_name = ("%s.%s" % (res.title, GIT))
         # orig_repo_loc = ("http://%s@%s" % (employer.username, GIT_SERVER))
         # orig_repo_link = os.path.join(orig_repo_loc, GIT, company, orig_repo_name)
 
@@ -199,11 +199,11 @@ def invite_candidates(challenge_id):
 
             candidate_repo_name = ("%s.%s" % (candidate.username, GIT))
             candidate_repo_loc = ("http://%s@%s" % (candidate.username, GIT_SERVER))
-            candidate_repo_link = os.path.join(candidate_repo_loc, GIT, company, challenge.title, candidate_repo_name)
+            candidate_repo_link = os.path.join(candidate_repo_loc, GIT, company, res.title, candidate_repo_name)
 
             # clone repo
-            candidate_repo = challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, company, challenge.title, candidate_repo_name))
-            new_repo = Repository(employer.employer_id, candidate_id, challenge.challenge_id, candidate_repo_link, invited=True)
+            candidate_repo = challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, company, res.title, candidate_repo_name))
+            new_repo = Repository(res.employer_id, candidate_id, res.challenge_id, candidate_repo_link, invited=True)
             db.session.add(new_repo)
             db.session.commit()
 
