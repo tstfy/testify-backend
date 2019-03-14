@@ -6,11 +6,6 @@ class CompanySchema(ma.Schema):
         fields = ('name',)
 
 
-class CandidateSchema(ma.Schema):
-    class Meta:
-        fields = ('email', 'f_name', 'l_name', 'last_modified')
-
-
 class EmployerSchema(ma.Schema):
     class Meta:
         fields = ('employer_id', 'username', 'email', 'f_name', 'l_name', 'last_modified', 'company')
