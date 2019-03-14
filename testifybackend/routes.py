@@ -192,6 +192,28 @@ def delete_candidate(challenge_id, candidate_id):
 
 # TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
 
+def create_candidate_repo(challenge_repo, candidate, res):
+    candidate_repo_name = ("%s.%s" % (candidate.username, GIT))
+    candidate_repo_loc = ("http://%s@%s" % (candidate.username, GIT_SERVER))
+    candidate_repo_link = os.path.join(candidate_repo_loc, GIT, res.company, res.title, candidate_repo_name)
+
+    # clone repo
+    candidate_repo = challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, candidate_repo_name))
+    new_repo = Repository(res.employer_id, candidate.candidate_id, res.challenge_id, candidate_repo_link, invited=True)
+    db.session.add(new_repo)
+    db.session.commit()
+
+def add_to_htpasswd(candidate):
+    with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
+        authdb.add(candidate.username, candidate.password)
+
+def send_email_to_candidate(conn, cinfo):
+    f_name, l_name, email = cinfo['FirstName'], cinfo['LastName'], cinfo['Email']
+    username, password = cinfo['Username'], cinfo['Password']
+    message = ("TESTING\nusername: %s\npassword: %s" % (username, password))
+    subject = ("Hello, %s %s" % (f_name, l_name))
+    msg = Message(recipients=[email], body=message, subject=subject)
+    conn.send(msg)
 
 # TODO: login_required
 @app.route("/challenges/<challenge_id>/invite", methods=["POST"])
@@ -209,12 +231,11 @@ def invite_candidates(challenge_id):
 
         res = res.first()
         cid = res.challenge_id
-        company = res.company
         orig_repo_name = ("%s.%s" % (res.title, GIT))
         # orig_repo_loc = ("http://%s@%s" % (employer.username, GIT_SERVER))
         # orig_repo_link = os.path.join(orig_repo_loc, GIT, company, orig_repo_name)
 
-        challenge_repo = Repo(os.path.join(CHALLENGES_BASE_PATH, company, orig_repo_name))
+        challenge_repo = Repo(os.path.join(CHALLENGES_BASE_PATH, res.company, orig_repo_name))
         error_candidates = []
 
         for candidate_id in candidate_ids:
@@ -235,23 +256,12 @@ def invite_candidates(challenge_id):
                 error_candidates.append(candidate_id)
                 continue
 
-            candidate_repo_name = ("%s.%s" % (candidate.username, GIT))
-            candidate_repo_loc = ("http://%s@%s" % (candidate.username, GIT_SERVER))
-            candidate_repo_link = os.path.join(candidate_repo_loc, GIT, company, res.title, candidate_repo_name)
-
-            # clone repo
-            candidate_repo = challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, company, res.title, candidate_repo_name))
-            new_repo = Repository(res.employer_id, candidate_id, res.challenge_id, candidate_repo_link, invited=True)
-            db.session.add(new_repo)
-            db.session.commit()
+            create_candidate_repo(challenge_repo, candidate, res)
 
             # enter candidate into htpasswd
-
-            with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
-                authdb.add(candidate.username, candidate.password)
+            add_to_htpasswd(candidate)
 
         # send emails to candidates
-        # error_candidates = [int(x) for x in error_candidates]
         contact_candidates = set(candidate_ids) - set(error_candidates)
         res = db.session.query(Candidate)\
                         .filter(Candidate.candidate_id.in_(contact_candidates))
@@ -263,12 +273,7 @@ def invite_candidates(challenge_id):
 
         with mail.connect() as conn:
             for candidate_info in candidate_infos:
-                f_name, l_name, email = candidate_info['FirstName'], candidate_info['LastName'], candidate_info['Email']
-                username, password = candidate_info['Username'], candidate_info['Password']
-                message = ("TESTING\nusername: %s\npassword: %s" % (username, password))
-                subject = ("Hello, %s %s" % (f_name, l_name))
-                msg = Message(recipients=[email], body=message, subject=subject)
-                conn.send(msg)
+                send_email_to_candidate(conn, candidate_info)
 
         # return all new repos created
         if error_candidates:
