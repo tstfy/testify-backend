@@ -29,10 +29,20 @@ class CandidateExistsException(Exception):
 
 class InvalidCandidateException(Exception):
 
-    def __init__(self, candidate_id):
-        super().__init__('Candidate id provided (%s) is invalid', candidate_id)
+    def __init__(self, *candidate_ids):
+        super().__init__('Candidate id(s) provided %s is/are invalid and invite failed for those id(s)', candidate_ids)
+
+class CandidateInvitedException(Exception):
+
+    def __init__(self, candidate_id, challenge):
+        super().__init__('Candidate id provided (%d) is already invited to challenge (%s)', candidate_id, challenge)
 
 class AlreadyDeletedException(Exception):
 
     def __init__(self, candidate_id):
-        super().__init__('Candidate with provided candidate id (%s) is already deleted', candidate_id)
+        super().__init__('Candidate with provided candidate id (%d) is already deleted', candidate_id)
+
+class InvalidChallengeException(Exception):
+
+    def __init__(self, challenge_id):
+        super().__init__('Challenge id provided (%d) is invalid', challenge_id)

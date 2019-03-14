@@ -31,6 +31,8 @@ from testifybackend.classes.Exception import (
     InvalidCandidateException,
     AlreadyDeletedException,
     CandidateExistsException,
+    InvalidChallengeException,
+    CandidateInvitedException
 )
 
 from git import Repo
@@ -101,6 +103,7 @@ class Employer(db.Model):
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
     company = db.Column(db.String(120), db.ForeignKey(Company.name), nullable=False)
+    deleted = db.Column(db.Boolean, default=False)
 
     def __init__(self, username, email, password, f_name, l_name, company):
         self.username = username
@@ -121,7 +124,7 @@ employer_schema = EmployerSchema()
 class Challenge(db.Model):
     challenge_id = db.Column(db.Integer, primary_key=True)
     employer_id = db.Column(db.Integer, db.ForeignKey(Employer.employer_id))
-    title = db.Column(db.String(80), nullable=False)
+    title = db.Column(db.String(80), nullable=False, unique=True)
     description = db.Column(db.String(280))
     category = db.Column(db.String(80))
     created = db.Column(db.DateTime())
@@ -174,19 +177,23 @@ class Repository(db.Model):
     candidate_id = db.Column(db.Integer, db.ForeignKey(Candidate.candidate_id), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
+    repo_link = db.Column(db.String(140), nullable=False, unique=True)
+    invited = db.Column(db.Boolean, default=False)
 
-    def __init__(self, employer, candidate, challenge):
+    def __init__(self, employer, candidate, challenge, repo_link, invited=False):
         self.employer_id = employer
         self.candidate_id = candidate
         self.challenge_id = challenge
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
+        self.repo_link = repo_link
+        self.invited = invited
 
 
 class RepositorySchema(ma.Schema):
     class Meta:
         # Fields to expose
-        fields = ('repository_id', 'employer_id', 'candidate_id', 'challenge_id', 'last_modified')
+        fields = ('repository_id', 'employer_id', 'candidate_id', 'challenge_id', 'last_modified, repo_link')
 
 repository_schema = RepositorySchema()
 
@@ -244,7 +251,7 @@ def create_candidate_pass():
     return uuid.uuid4()
 
 #TODO: login_required
-@app.route("/user/<eid>/challenges/<challenge_id>/candidates", methods=["POST"])
+@app.route("/challenges/<challenge_id>/candidates", methods=["POST"])
 def add_candidates(eid, challenge_id):
     try:
         email = request.json['email']
@@ -262,26 +269,26 @@ def add_candidates(eid, challenge_id):
         db.session.commit()
 
         candidate_record = db.session.query(Candidate).filter(Candidate.email==email).first()
-        return jsonify(candidate_schema.dump(candidate_record).data)
+        return jsonify(candidate_schema.dump(candidate_record))
 
     except Exception as e:
         return(str(e))
 
 #TODO: login_required
-@app.route("/user/<eid>/challenges/<cid>/candidates", methods=["GET"])
-def view_candidates(eid, cid):
+@app.route("/challenges/<cid>/candidates", methods=["GET"])
+def get_candidates(cid):
     try:
         candidates = db.session.query(Candidate).filter(Candidate.assigned_challenge==cid).filter(Candidate.deleted==False)
-        return jsonify(candidate_schema.dump(candidates).data)
+        return jsonify([candidate_schema.dump(candidate) for candidate in candidates])
 
     except Exception as e:
         return(str(e))
 
 #TODO: login_required
-@app.route("/user/<eid>/challenges/<challenge_id>/candidates/<candidate_id>", methods=["DELETE"])
+@app.route("/challenges/<challenge_id>/candidates/<candidate_id>", methods=["DELETE"])
 def delete_candidate(challenge_id, candidate_id):
     try:
-        res = db.session.query(Candidate).filter(Candidate.candidate_id==candidate_id)
+        res = db.session.query(Candidate).get(candidate_id)
         if not res.count() is 1 :
             raise InvalidCandidateException(candidate_id)
 
@@ -291,7 +298,7 @@ def delete_candidate(challenge_id, candidate_id):
 
         res.deleted = True
         db.session.commit()
-        return jsonify(candidate_schema.dump(res).data, success=True)
+        return jsonify(candidate_schema.dump(res))
 
     except Exception as e:
         return(str(e))
@@ -299,44 +306,83 @@ def delete_candidate(challenge_id, candidate_id):
 #TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
 
 #TODO: login_required
-@app.route("/user/<eid>/challenges/<cid>/invite/", methods=["POST"])
-def invite_candidates(eid, cid):
-    #TODO: create repo object, repo link, creds in htpasswd and send emails here
+@app.route("/challenges/<challenge_id>/invite", methods=["POST"])
+def invite_candidates(challenge_id):
     try:
-        challenge = cid
-        employer = eid
-        #TODO: read request for array of candidate ids to whom invites are sent
-        new_repository = Repository(employer, candidate, challenge)
-        db.session.add(new_repository)
-        db.session.commit()
+        eid = request.json['employer_id']
+        candidate_ids = request.json['candidate_ids']
 
-        new_repository = db.session.query(Repository).filter(Repository.employer_id==employer).\
-                        filter(Repository.candidate_id==candidate).\
-                        filter(Repository.challenge_id==challenge).first()
+        res = db.session.query(Employer).join(Challenge).filter(Employer.employer_id==eid).filter(Challenge.challenge_id==challenge_id)
+        if not res.count() == 1:
+            raise InvalidChallengeException(challenge_id)
 
-        return jsonify(repository_schema.dump(new_repository).data)
+        res = res.first()
+        employer = employer_schema.dump(res)
+        challenge = challenge_schema.dump(res)
 
-    except Exception as e:
-        return(str(e))
+        company = employer.company
+        orig_repo_name = ("%s.%s" % (challenge.title, GIT))
+        # orig_repo_loc = ("http://%s@%s" % (employer.username, GIT_SERVER))
+        # orig_repo_link = os.path.join(orig_repo_loc, GIT, company, orig_repo_name)
 
-# need to change the route on this to have /challenges prefix
-@app.route("/comments", methods=["POST"])
-def create_comment():
-    try:
-        user = request.json['user']
-        message = request.json['message']
-        challenge = request.json['challenge']
-        # TODO need time of comment as well
+        challenge_repo = Repo(os.path.join(CHALLENGES_BASE_PATH, company, orig_repo_name))
+        error_candidates = []
 
-        new_comment = Comment(user, message, challenge)
-        db.session.add(new_comment)
-        db.session.commit()
+        for candidate_id in candidate_ids:
+            # check that candidate belongs to challenge
+            res = db.session.query(Candidate).get(candidate_id)
+            if not res.count() == 1:
+                error_candidates.append(candidate_id)
+                continue
 
-        new_comment = db.session.query(Comment).filter(Comment.user==user).\
-                        filter(Comment.message==message).\
-                        filter(Comment.challenge==challenge).first()
+            candidate = res.first()
 
-        return jsonify(comment_schema.dump(new_comment).data)
+            if not candidate.assigned_challenge == challenge_id:
+                error_candidates.append(candidate_id)
+                continue
+
+            # check if repo already exists
+            if not db.session.query(Repository).filter(Repository.candidate_id==candidate_id).count() == 0:
+                error_candidates.append(candidate_id)
+                continue
+
+            candidate_repo_name = ("%s.%s" % (candidate.username, GIT))
+            candidate_repo_loc = ("http://%s@%s" % (candidate.username, GIT_SERVER))
+            candidate_repo_link = os.path.join(candidate_repo_loc, GIT, company, challenge.title, candidate_repo_name)
+
+            # clone repo
+            candidate_repo = challenge_repo.clone(os.path.join(CHALLENGES_BASE_PATH, company, challenge.title, candidate_repo_name))
+            new_repo = Repository(employer.employer_id, candidate_id, challenge.challenge_id, candidate_repo_link, invited=True)
+            db.session.add(new_repo)
+            db.session.commit()
+
+            # enter candidate into htpasswd
+
+            with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
+                authdb.add(candidate.username, candidate.password)
+
+        # send emails to candidates
+        contact_candidates = candidate_ids - error_candidates
+        query = db.session.query(Candidate.f_name, Candidate.l_name, Candidate.email).filter(Candidate.id.in_(contact_candidates))
+        candidate_rows = jsonify([candidate_schema.dump(candidate) for candidate in query.all()])
+        candidate_infos = [{'First Name': c.f_name, 'Last Name': c.l_name, 'Email': c.email} for c in candidate_rows]
+
+        with mail.connect() as conn:
+            for candidate_info in candidate_infos:
+                f_name, l_name, email = candidate_info['First Name'], candidate_info['Last Name'], candidate_info['Email']
+                message = 'TESTING'
+                subject = ("Hello, %s %s" % (f_name, l_name))
+                msg = Message(recipients=[email],
+                                body=message,
+                                subject=subject)
+                conn.send(msg)
+
+        # return all new repos created
+        if error_candidates:
+            raise InvalidCandidateException(*candidate_ids)
+
+        new_repos = db.session.query(Repository).filter(Repository.challenge_id==challenge.challenge_id)
+        return jsonify([repository_schema.dump(repository) for repository in new_repos])
 
     except Exception as e:
         return(str(e))
@@ -464,7 +510,7 @@ def user_detail(id):
 @login_required
 def user_delete(id):
     user = Employer.query.get(id)
-    db.session.delete(user)
+    user.deleted = True
     db.session.commit()
 
     return jsonify(employer_schema.dump(user))
