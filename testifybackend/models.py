@@ -61,7 +61,7 @@ class Candidate(db.Model):
     l_name = db.Column(db.String(30), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
-    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
+    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id))
     deleted = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
