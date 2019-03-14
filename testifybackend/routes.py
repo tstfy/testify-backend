@@ -242,10 +242,11 @@ def invite_candidates(challenge_id):
     except Exception as e:
         return(str(e))
 
-@app.route("/challenges/<eid>", methods=["GET"])
+@app.route("/challenges", methods=["GET"])
 # @authorization
-def get_challenges(eid):
+def get_challenges():
     try:
+        eid = request.args.get("eid")
         user = Employer.query.get(eid)
         if user is None:
             raise InvalidEmployerException(eid)
