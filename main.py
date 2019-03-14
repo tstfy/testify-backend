@@ -1,20 +1,6 @@
-from datetime import datetime, timedelta
-
-from flask import Flask, request, jsonify, session
-from flask_cors import CORS
-from flask_mail import Mail, Message
-# from flask.ext.session import Session # TODO: maybe use this for session
-# from flask_restful import Resource, Api
-from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
-from passlib.hash import sha256_crypt
+from flask import request, jsonify, session
+from flask_mail import Message
 from functools import wraps
-from testifybackend.config import (
-    SECRET_KEY,
-    SQLALCHEMY_DATABASE_URI,
-    MAIL_SETTINGS,
-)
-
 from testifybackend.constants import (
     CHALLENGES_BASE_PATH,
     CHALLENGES_AUTH_FP,
@@ -22,7 +8,23 @@ from testifybackend.constants import (
     GIT_SERVER,
 )
 
-from testifybackend.classes.Exception import (
+from testifybackend.models import (
+    Candidate,
+    Employer,
+    Challenge,
+    Repository,
+    Company,
+)
+
+from testifybackend.schemas import (
+    CompanySchema,
+    EmployerSchema,
+    ChallengeSchema,
+    CandidateSchema,
+    RepositorySchema,
+)
+
+from testifybackend.exceptions import (
     AuthenticationRequiredException,
     UsernameTakenException,
     IncorrectCredentialsException,
@@ -35,6 +37,7 @@ from testifybackend.classes.Exception import (
     CandidateInvitedException
 )
 
+from testifybackend.app import db
 from git import Repo
 
 import htpasswd
@@ -42,146 +45,11 @@ import os
 import shutil
 import uuid
 
-app = Flask(__name__)
-app.secret_key = SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI'] = SQLALCHEMY_DATABASE_URI
-app.config.update(MAIL_SETTINGS)
-
-CORS(app)
-mail = Mail(app)
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
-
-class Company(db.Model):
-    company_id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True, nullable=False)
-
-    def __init__(self, name):
-        self.name = name
-
-class CompanySchema(ma.Schema):
-    class Meta:
-        fields = ('name',)
-
 company_schema = CompanySchema()
-
-class Employer(db.Model):
-    employer_id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    f_name = db.Column(db.String(30), nullable=False)
-    l_name = db.Column(db.String(30), nullable=False)
-    created = db.Column(db.DateTime())
-    last_modified = db.Column(db.DateTime())
-    company = db.Column(db.String(120), db.ForeignKey(Company.name), nullable=False)
-    deleted = db.Column(db.Boolean, default=False)
-
-    def __init__(self, username, email, password, f_name, l_name, company):
-        self.username = username
-        self.email = email
-        self.password = password
-        self.f_name = f_name
-        self.l_name = l_name
-        self.created = datetime.utcnow()
-        self.last_modified = datetime.utcnow()
-        self.company = company
-
-class EmployerSchema(ma.Schema):
-    class Meta:
-        fields = ('employer_id', 'username', 'email', 'f_name', 'l_name', 'last_modified', 'company')
-
 employer_schema = EmployerSchema()
-
-class Challenge(db.Model):
-    challenge_id = db.Column(db.Integer, primary_key=True)
-    employer_id = db.Column(db.Integer, db.ForeignKey(Employer.employer_id))
-    title = db.Column(db.String(80), nullable=False, unique=True)
-    description = db.Column(db.String(280))
-    category = db.Column(db.String(80))
-    created = db.Column(db.DateTime())
-    last_modified = db.Column(db.DateTime())
-    repo_link = db.Column(db.String(140), nullable=False)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-
-    def __init__(self, employer, title, description, category, repo_link):
-        self.employer_id = employer
-        self.title = title
-        self.description = description
-        self.category = category
-        self.created = datetime.utcnow()
-        self.last_modified = datetime.utcnow()
-        self.repo_link = repo_link
-
-class ChallengeSchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = ('challenge_id', 'employer_id', 'title', 'description', 'category', 'repo_link')
-
 challenge_schema = ChallengeSchema()
-
-class Candidate(db.Model):
-    candidate_id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    f_name = db.Column(db.String(30), nullable=False)
-    l_name = db.Column(db.String(30), nullable=False)
-    created = db.Column(db.DateTime())
-    last_modified = db.Column(db.DateTime())
-    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=True)
-    deleted = db.Column(db.Boolean, default=False, nullable=False)
-
-    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
-        self.email = email
-        self.username = username
-        self.password = password
-        self.f_name = f_name
-        self.l_name = l_name
-        self.created = datetime.utcnow()
-        self.last_modified = datetime.utcnow()
-        self.assigned_challenge = assigned_challenge
-
-class CandidateSchema(ma.Schema):
-    class Meta:
-        fields = ('email','f_name','l_name', 'last_modified')
-
 candidate_schema = CandidateSchema()
-
-class CommentSchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = ('user', 'message', 'repository', 'last_modified')
-
-comment_schema = CommentSchema()
-
-class Repository(db.Model):
-    repository_id = db.Column(db.Integer, primary_key=True)
-    employer_id = db.Column(db.Integer, db.ForeignKey(Employer.employer_id), nullable=False)
-    challenge_id = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=False)
-    candidate_id = db.Column(db.Integer, db.ForeignKey(Candidate.candidate_id), nullable=False)
-    created = db.Column(db.DateTime())
-    last_modified = db.Column(db.DateTime())
-    repo_link = db.Column(db.String(140), nullable=False, unique=True)
-    invited = db.Column(db.Boolean, default=False)
-
-    def __init__(self, employer, candidate, challenge, repo_link, invited=False):
-        self.employer_id = employer
-        self.candidate_id = candidate
-        self.challenge_id = challenge
-        self.created = datetime.utcnow()
-        self.last_modified = datetime.utcnow()
-        self.repo_link = repo_link
-        self.invited = invited
-
-
-class RepositorySchema(ma.Schema):
-    class Meta:
-        # Fields to expose
-        fields = ('repository_id', 'employer_id', 'candidate_id', 'challenge_id', 'last_modified, repo_link')
-
 repository_schema = RepositorySchema()
-
 
 def construct_data(endpoint, id, data):
     return {
@@ -189,7 +57,6 @@ def construct_data(endpoint, id, data):
             "id": id,
             "attributes": data
     }
-
 
 def login_required(f):
     @wraps(f)
@@ -538,18 +405,4 @@ def logout():
     session.clear()
     return "LOGOUT SUCCESS"
 
-def reset_git_directory():
-    for d in os.listdir(CHALLENGES_BASE_PATH):
-        full_path = os.path.join(CHALLENGES_BASE_PATH, d)
-        if os.path.isdir(full_path):
-            shutil.rmtree(full_path)
-
-    with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
-        for user in authdb.users:
-            authdb.pop(user)
-
-if __name__ == 'app':
-    db.drop_all()
-    db.create_all()
-    reset_git_directory()
-    app.run(debug=True)
+launch()
