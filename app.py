@@ -435,7 +435,7 @@ def create_challenge():
         if os.path.exists(path):
             raise ChallengeRepositoryExistsException(path)
 
-        Repo.init(path, bare=True)
+        Repo.init(path)
         repo_loc = ("http://%s@%s" % (username, GIT_SERVER))
         repo_link = os.path.join(repo_loc, GIT, company, repo_name)
 
