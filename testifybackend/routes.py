@@ -107,12 +107,14 @@ def add_candidates(challenge_id):
         email = request.json['email']
         f_name = request.json['f_name']
         l_name = request.json['l_name']
+
+        if not db.session.query(Candidate).filter(Candidate.email==email).count() == 0:
+            raise CandidateExistsException
+
         username = create_unique_uname(email, f_name, l_name)
         password = create_candidate_pass()
         assigned_challenge = challenge_id
 
-        if not db.session.query(Candidate).filter(Candidate.email==email).count() == 0:
-            raise CandidateExistsException
 
         new_candidate = Candidate(email, username, password, f_name, l_name, assigned_challenge)
         db.session.add(new_candidate)
