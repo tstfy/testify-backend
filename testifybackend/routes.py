@@ -284,15 +284,15 @@ def invite_candidates(challenge_id):
             for candidate_info in candidate_infos:
                 send_email_to_candidate(conn, candidate_info)
 
-        # return all new repos created
-        if error_candidates:
-            raise InvalidCandidateException(*candidate_ids)
+        # # return all new repos created
+        # if error_candidates:
+        #     raise InvalidCandidateException(*candidate_ids)
 
         new_repos = db.session.query(Repository).filter(Repository.challenge_id==cid)
         return make_response(jsonify([repository_schema.dump(repository) for repository in new_repos]), status.HTTP_201_CREATED)
 
     except Exception as e:
-        return(str(e))
+        return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
 
 
 @app.route("/challenges", methods=["GET"])
@@ -356,7 +356,7 @@ def create_challenge():
                                   .filter(Challenge.title == title)\
                                   .first()
 
-        return make_respose(jsonify(challenge_schema.dump(new_challenge).data), status.HTTP_201_CREATED)
+        return make_response(jsonify(challenge_schema.dump(new_challenge).data), status.HTTP_201_CREATED)
 
     except InvalidEmployerException as e:
         return make_response(e._jsonify(), status.HTTP_404_NOT_FOUND)
