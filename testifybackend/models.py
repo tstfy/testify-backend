@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from . import db
 
+
 class Company(db.Model):
     company_id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), unique=True, nullable=False)
@@ -32,6 +33,7 @@ class Employer(db.Model):
         self.last_modified = datetime.utcnow()
         self.company = company
 
+
 class Challenge(db.Model):
     challenge_id = db.Column(db.Integer, primary_key=True)
     employer_id = db.Column(db.Integer, db.ForeignKey(Employer.employer_id))
@@ -51,6 +53,7 @@ class Challenge(db.Model):
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
         self.repo_link = repo_link
+
 
 class Candidate(db.Model):
     candidate_id = db.Column(db.Integer, primary_key=True)
@@ -73,6 +76,7 @@ class Candidate(db.Model):
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
         self.assigned_challenge = assigned_challenge
+
 
 class Repository(db.Model):
     repository_id = db.Column(db.Integer, primary_key=True)
