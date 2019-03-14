@@ -126,11 +126,17 @@ def add_candidates(challenge_id):
         return(str(e))
 
 #TODO: login_required
-@app.route("/challenges/<cid>/candidates", methods=["GET"])
-def get_candidates(cid):
+@app.route("/challenges/candidates", methods=["GET"])
+def get_candidates():
     try:
-        candidates = db.session.query(Candidate).filter(Candidate.assigned_challenge==cid).filter(Candidate.deleted==False)
-        return jsonify([candidate_schema.dump(candidate) for candidate in candidates])
+        challenge_id = request.args.get("cid")
+        candidates = db.session.query(Candidate)\
+                               .filter(Candidate.assigned_challenge == challenge_id)\
+                               .filter(Candidate.deleted == False)
+
+        data = [candidate_schema.dump(candidate).data for candidate in candidates]
+        json_data = [construct_data("candidates", int(d["candidate_id"]), d) for d in data]
+        return jsonify({"data": json_data})
 
     except Exception as e:
         return(str(e))
@@ -340,11 +346,13 @@ def register_user():
         return(str(e))
 
 # TODO: need to add login_required wrapper
-@app.route("/user/<eid>", methods=["GET"])
-def user_detail(eid):
+@app.route("/user", methods=["GET"])
+def user_detail():
+    eid = request.args.get("eid")
     user = Employer.query.get(eid)
     if user is None:
         raise InvalidEmployerException(eid)
+
     data = employer_schema.dump(user).data
     return jsonify({"data": construct_data("user", eid, data)})
 
