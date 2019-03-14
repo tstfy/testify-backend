@@ -363,14 +363,24 @@ def invite_candidates(challenge_id):
 
         # send emails to candidates
         contact_candidates = candidate_ids - error_candidates
-        query = db.session.query(Candidate.f_name, Candidate.l_name, Candidate.email).filter(Candidate.id.in_(contact_candidates))
+        query = db.session.query(Candidate.f_name,
+                                 Candidate.l_name,
+                                 Candidate.email,
+                                 Candidate.username,
+                                 Candidate.password).filter(Candidate.id.in_(contact_candidates))
+
         candidate_rows = jsonify([candidate_schema.dump(candidate) for candidate in query.all()])
-        candidate_infos = [{'First Name': c.f_name, 'Last Name': c.l_name, 'Email': c.email} for c in candidate_rows]
+        candidate_infos = [{'FirstName': c.f_name,
+                            'LastName': c.l_name,
+                            'Email': c.email,
+                            'Username': c.username,
+                            'Password': c.password} for c in candidate_rows]
 
         with mail.connect() as conn:
             for candidate_info in candidate_infos:
-                f_name, l_name, email = candidate_info['First Name'], candidate_info['Last Name'], candidate_info['Email']
-                message = 'TESTING'
+                f_name, l_name, email = candidate_info['FirstName'], candidate_info['LastName'], candidate_info['Email']
+                username, password = candidate_info['Username'], candidate_info['Password']
+                message = ('TESTING\nusername: %s\npassword: %s' % (username, password))
                 subject = ("Hello, %s %s" % (f_name, l_name))
                 msg = Message(recipients=[email],
                                 body=message,
