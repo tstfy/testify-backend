@@ -120,7 +120,7 @@ def create_unique_uname(email, f_name, l_name):
 
 
 def create_candidate_pass():
-    return uuid.uuid4()
+    return str(uuid.uuid4())
 
 
 # TODO: login_required
@@ -265,7 +265,7 @@ def invite_candidates(challenge_id):
             for candidate_info in candidate_infos:
                 f_name, l_name, email = candidate_info['FirstName'], candidate_info['LastName'], candidate_info['Email']
                 username, password = candidate_info['Username'], candidate_info['Password']
-                message = ('TESTING\nusername: %s\npassword: %s' % (username, password))
+                message = ("TESTING\nusername: %s\npassword: %s" % (username, password))
                 subject = ("Hello, %s %s" % (f_name, l_name))
                 msg = Message(recipients=[email], body=message, subject=subject)
                 conn.send(msg)
