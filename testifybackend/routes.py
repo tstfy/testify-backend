@@ -49,6 +49,17 @@ candidate_schema = CandidateSchema()
 repository_schema = RepositorySchema()
 
 
+def _chown(path, uid, gid):
+    os.chown(path, uid, gid)
+    for item in os.listdir(path):
+        itempath = os.path.join(path, item)
+        if os.path.isfile(itempath):
+            os.chown(itempath, uid, gid)
+        elif os.path.isdir(itempath):
+            os.chown(itempath, uid, gid)
+            _chown(itempath, uid, gid)
+
+
 def construct_data(endpoint, id, data):
     return {
             "type": endpoint,
@@ -334,7 +345,8 @@ def create_challenge():
         if os.path.exists(path):
             raise ChallengeRepositoryExistsException(path)
 
-        Repo.init(path)
+        Repo.init(path, bare=True)
+        _chown(path, 1005, 33)
         repo_loc = ("http://%s@%s" % (username, GIT_SERVER))
         repo_link = os.path.join(repo_loc, GIT, company, repo_name)
 
@@ -377,6 +389,7 @@ def register_user():
                 path = os.path.join(CHALLENGES_BASE_PATH, company)
                 if not os.path.exists(path):
                     os.makedirs(os.path.join(CHALLENGES_BASE_PATH, company))
+                    _chown(os.path.join(CHALLENGES_BASE_PATH, company), 1005, 33)
 
             new_employer = Employer(username, email, password, f_name, l_name, company)
             db.session.add(new_employer)
