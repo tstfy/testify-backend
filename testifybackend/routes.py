@@ -251,7 +251,10 @@ def invite_candidates(challenge_id):
 # @authorization
 def get_challenges(eid):
     try:
-        eid = request.args.get("eid")
+        user = Employer.query.get(eid)
+        if user is None:
+            raise InvalidEmployerException(eid)
+
         challenges = db.session.query(Challenge)\
                                .filter(Challenge.employer_id==eid)\
                                .filter(Challenge.deleted==False)
@@ -272,6 +275,10 @@ def create_challenge():
         title = request.json['title']
         description = request.json['description']
         category = request.json['category']
+
+        user = Employer.query.get(employer)
+        if user is None:
+            raise InvalidEmployerException(employer)
 
         if existing_challenge(employer, title):
             raise ChallengeExistsException
