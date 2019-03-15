@@ -42,7 +42,7 @@ class CandidateExistsException(Exception):
 class InvalidCandidateException(Exception):
 
     def __init__(self, *candidate_ids):
-        super().__init__('Candidate id(s) provided %s is/are invalid and invite failed for those id(s)' % candidate_ids)
+        super().__init__('Candidate id(s) provided (%s) is/are invalid' % candidate_ids)
 
 class InvalidCandidateStatusException(Exception):
 
