@@ -236,7 +236,9 @@ def add_to_htpasswd(candidate):
 
 def send_email_to_candidate(conn, c, res):
     c.invited = True
-    message = ("TESTING\nusername: %s\npassword: %s\nlink to repo: %s" % (c.username, c.password, c.repo_link))
+    credentials_msg = ("Credentials to the repository with the challenge:\nusername: %s\npassword: %s\n" % (c.username, c.password))
+    instructions = ("\n\nCopy and paste the following into a terminal to start:\n\n\tgit clone %s" % (c.repo_link))
+    message = credentials_msg + instructions
     subject = ("Hello %s %s, new challenge %s sent from %s" % (c.f_name, c.l_name, res.title, res.company))
     msg = Message(recipients=[c.email], body=message, subject=subject)
     conn.send(msg)
