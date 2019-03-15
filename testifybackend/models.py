@@ -80,7 +80,7 @@ class Candidate(db.Model):
         self.assigned_challenge = assigned_challenge
 
     def already_sent_invite(self):
-        return self.status >= CandidateStatus.INVITED
+        return self.status >= CandidateStatus.INVITED.value
 
 class Repository(db.Model):
     repository_id = db.Column(db.Integer, primary_key=True)
