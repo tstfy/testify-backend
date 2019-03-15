@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from . import db
-
+from .constants import CandidateStatus
 
 class Company(db.Model):
     company_id = db.Column(db.Integer, primary_key=True)
@@ -67,7 +67,7 @@ class Candidate(db.Model):
     assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id))
     repo_link = db.Column(db.String(140), nullable=True, unique=True)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
-    invited = db.Column(db.Boolean, default=False)
+    status = db.Column(db.Integer, default=0)
 
     def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
         self.email = email
@@ -79,6 +79,8 @@ class Candidate(db.Model):
         self.last_modified = datetime.utcnow()
         self.assigned_challenge = assigned_challenge
 
+    def already_sent_invite(self):
+        return self.status >= CandidateStatus.INVITED
 
 class Repository(db.Model):
     repository_id = db.Column(db.Integer, primary_key=True)
