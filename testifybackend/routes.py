@@ -142,7 +142,7 @@ def create_candidate_pass():
 def update_candidate_status(challenge_id, candidate_id):
     try:
         candidate = db.session.query(Candidate).get(candidate_id)
-        if not candidate.assigned_challenge == challenge_id:
+        if not candidate.assigned_challenge == int(challenge_id):
             raise InvalidCandidateException(candidate_id)
 
         status = request.json['status'].strip().lower()
@@ -324,8 +324,8 @@ def invite_candidates(challenge_id):
         db.session.commit()
 
         # return all new repos created
-        if error_candidates:
-            raise InvalidCandidateException(*candidate_ids)
+        # if error_candidates:
+        #     raise InvalidCandidateException(*candidate_ids)
 
         new_repos = db.session.query(Repository).filter(Repository.challenge_id==cid)
         return jsonify([repository_schema.dump(repository) for repository in new_repos])
