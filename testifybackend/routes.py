@@ -7,6 +7,7 @@ from testifybackend.constants import (
     CHALLENGES_AUTH_FP,
     GIT,
     GIT_SERVER,
+    CandidateStatus
 )
 from testifybackend.models import (
     Candidate,
@@ -32,7 +33,8 @@ from testifybackend.exceptions import (
     AlreadyDeletedException,
     CandidateExistsException,
     InvalidChallengeException,
-    InvalidEmployerException
+    InvalidEmployerException,
+    InvalidCandidateStatusException
 )
 from . import db, mail, app
 from git import Repo
@@ -136,7 +138,29 @@ def create_candidate_pass():
     return str(uuid.uuid4())
 
 
-# TODO: login_required
+@app.route("/challenges/<challenge_id>/candidates/<candidate_id>", methods=["PUT"])
+def update_candidate_status(challenge_id, candidate_id):
+    try:
+        candidate = db.session.query(Candidate).get(candidate_id)
+        if not candidate.assigned_challenge == challenge_id:
+            raise InvalidCandidateException(candidate_id)
+
+        status = request.json['status'].strip().lower()
+        if status == "rejected":
+            candidate.status = CandidateStatus.REJECTED
+        elif status == "accepted":
+            candidate.status = CandidateStatus.ACCEPTED
+        else:
+            raise InvalidCandidateStatusException(candidate_id, status)
+
+        db.session.commit()
+        updated_candidate = db.session.query(Candidate).get(candidate_id)
+        return jsonify(candidate_schema.dump(updated_candidate))
+
+    except Exception as e:
+        return(str(e))
+
+
 @app.route("/challenges/<challenge_id>/candidates", methods=["POST"])
 def add_candidates(challenge_id):
     try:
@@ -167,7 +191,6 @@ def add_candidates(challenge_id):
         return(str(e))
 
 
-# TODO: login_required
 @app.route("/challenges/candidates", methods=["GET"])
 def get_candidates():
     try:
@@ -184,7 +207,6 @@ def get_candidates():
         return(str(e))
 
 
-# TODO: login_required
 @app.route("/challenges/<challenge_id>/candidates/<candidate_id>", methods=["DELETE"])
 def delete_candidate(challenge_id, candidate_id):
     try:
@@ -235,15 +257,14 @@ def add_to_htpasswd(candidate):
         authdb.add(candidate.username, candidate.password)
 
 def send_email_to_candidate(conn, c, res):
-    c.invited = True
+    c.status = CandidateStatus.INVITED
     credentials_msg = ("Credentials to the repository with the challenge:\nusername: %s\npassword: %s\n" % (c.username, c.password))
     instructions = ("\n\nCopy and paste the following into a terminal to start:\n\n\tgit clone %s" % (c.repo_link))
-    message = credentials_msg + instructions
+    body = credentials_msg + instructions
     subject = ("Hello %s %s, new challenge %s sent from %s" % (c.f_name, c.l_name, res.title, res.company))
-    msg = Message(recipients=[c.email], body=message, subject=subject)
+    msg = Message(recipients=[c.email], body=body, subject=subject)
     conn.send(msg)
 
-# TODO: login_required
 @app.route("/challenges/<challenge_id>/invite", methods=["POST"])
 def invite_candidates(challenge_id):
     try:
@@ -296,7 +317,7 @@ def invite_candidates(challenge_id):
 
         with mail.connect() as conn:
             for candidate in candidates:
-                if candidate.invited:
+                if candidate.already_sent_invite():
                     continue
                 send_email_to_candidate(conn, candidate, res)
 
@@ -424,7 +445,6 @@ def register_user():
         return(str(e))
 
 
-# TODO: need to add login_required wrapper
 @app.route("/user", methods=["GET"])
 def user_detail():
     eid = request.args.get("eid")
@@ -436,28 +456,6 @@ def user_detail():
     return jsonify({"data": construct_data("user", eid, data)})
 
 
-# @app.route("/user/<id>", methods=["PUT"])
-# @login_required
-# def user_update(id):
-#     try:
-#         user = Employer.query.get(id)
-#         username = request.json['username']
-#         email = request.json['email']
-
-#         if existing_username(username):
-#             raise UsernameTakenException
-
-#         user.email = email
-#         user.username = username
-#         user.last_modified = datetime.utcnow()
-
-#         db.session.commit()
-#         return employer_schema.jsonify(user)
-
-#     except Exception as e:
-#         return(str(e))
-
-# TODO: not sure if it will be supported, but consider cleanup if implemented
 @app.route("/user/<eid>", methods=["DELETE"])
 @login_required
 def user_delete(eid):
