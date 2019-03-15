@@ -147,9 +147,9 @@ def update_candidate_status(challenge_id, candidate_id):
 
         status = request.json['status'].strip().lower()
         if status == "rejected":
-            candidate.status = CandidateStatus.REJECTED
+            candidate.status = CandidateStatus.REJECTED.value
         elif status == "accepted":
-            candidate.status = CandidateStatus.ACCEPTED
+            candidate.status = CandidateStatus.ACCEPTED.value
         else:
             raise InvalidCandidateStatusException(candidate_id, status)
 
@@ -257,7 +257,7 @@ def add_to_htpasswd(candidate):
         authdb.add(candidate.username, candidate.password)
 
 def send_email_to_candidate(conn, c, res):
-    c.status = CandidateStatus.INVITED
+    c.status = CandidateStatus.INVITED.value
     credentials_msg = ("Credentials to the repository with the challenge:\nusername: %s\npassword: %s\n" % (c.username, c.password))
     instructions = ("\n\nCopy and paste the following into a terminal to start:\n\n\tgit clone %s" % (c.repo_link))
     body = credentials_msg + instructions
