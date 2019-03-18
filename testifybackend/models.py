@@ -65,7 +65,6 @@ class Candidate(db.Model):
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
     assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id))
-    repo_link = db.Column(db.String(140), nullable=True, unique=True)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
     status = db.Column(db.Integer, default=0)
 
@@ -87,12 +86,14 @@ class Repository(db.Model):
     employer_id = db.Column(db.Integer, db.ForeignKey(Employer.employer_id), nullable=False)
     challenge_id = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id), nullable=False)
     candidate_id = db.Column(db.Integer, db.ForeignKey(Candidate.candidate_id), nullable=False)
+    repo_link = db.Column(db.String(140), nullable=True)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
 
-    def __init__(self, employer, candidate, challenge):
+    def __init__(self, employer, candidate, challenge, repo_link=""):
         self.employer_id = employer
         self.candidate_id = candidate
         self.challenge_id = challenge
+        self.repo_link = repo_link
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
