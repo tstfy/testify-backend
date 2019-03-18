@@ -47,7 +47,7 @@ class InvalidCandidateException(Exception):
 class InvalidCandidateStatusException(Exception):
 
     def __init__(self, candidate_id, status):
-        super().__init__('Updating candidate with id (%d) to status (%s) not a valid action' % (candidate_id, status))
+        super().__init__('Updating candidate with id (%s) to status (%s) not a valid action' % (candidate_id, status))
 
 class AlreadyDeletedException(Exception):
 
