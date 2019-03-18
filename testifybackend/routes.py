@@ -35,7 +35,9 @@ from testifybackend.exceptions import (
     CandidateExistsException,
     InvalidChallengeException,
     InvalidEmployerException,
-    InvalidRepositoryStatusException
+    InvalidRepositoryStatusException,
+    InvalidCandidateChallengeComboException,
+    UninitializedRepositoryException,
 )
 from . import db, mail, app
 from git import Repo
@@ -47,6 +49,7 @@ import secrets
 import string
 import subprocess
 import errno
+import time
 
 company_schema = CompanySchema()
 employer_schema = EmployerSchema()
@@ -254,7 +257,44 @@ def delete_candidate(challenge_id, candidate_id):
     except Exception as e:
         return(str(e))
 
-# TODO make /user/eid/challenges/cid/candidates/cand_id GET route to see task progression
+@app.route("/challenges/<challenge_id>/candidates/<candidate_id>", methods=["GET"])
+def get_candidate_repository(challenge_id, candidate_id):
+    try:
+        repo_record = db.session.query(Repository)\
+            .filter(Repository.challenge_id==int(challenge_id))\
+            .filter(Repository.candidate_id==int(candidate_id))
+
+        if not repo_record.count() == 1:
+            raise InvalidCandidateChallengeComboException(candidate_id, challenge_id)
+        repo = repo_record.first()
+
+        if repo.repo_link == "":
+            raise UninitializedRepositoryException
+
+        res = db.session.query(Employer).join(Challenge)\
+                .add_columns(Employer.employer_id, Employer.company, Challenge.challenge_id, Challenge.title)\
+                .filter(Employer.employer_id == repo.employer_id)\
+                .filter(Challenge.challenge_id == repo.challenge_id)
+        if not res.count() == 1:
+            raise InvalidCandidateChallengeComboException(candidate_id, challenge_id)
+        res = res.first()
+
+        candidate = db.session.query(Candidate).get(candidate_id)
+
+        repo_name = ("%s.%s" % (candidate.username, GIT))
+        candidate_repo = os.path.join(CHALLENGES_BASE_PATH, res.company, res.title, repo_name)
+
+        repo = Repo(candidate_repo)
+        first_commits = list(repo.iter_commits('master', max_count=10))
+
+        data = [{"commit_date": time.gmtime(commit.committed_date),
+                "message": commit.message} for commit in first_commits]
+
+        json_data = [construct_data("progression", idx, datum) for idx, datum in enumerate(data)]
+        return jsonify({"data": json_data})
+
+    except Exception as e:
+        return(str(e))
 
 def copy_repo(src, dst):
     try:
@@ -400,7 +440,6 @@ def get_challenges():
 
 @app.route("/challenges", methods=["POST"])
 # @login_required; employer login required
-# TODO need a way to recognize which user is making this call
 def create_challenge():
     try:
         employer = request.json['employer']

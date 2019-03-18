@@ -44,6 +44,11 @@ class InvalidCandidateException(Exception):
     def __init__(self, *candidate_ids):
         super().__init__('Candidate id(s) provided (%s) is/are invalid' % candidate_ids)
 
+class InvalidCandidateChallengeComboException(Exception):
+
+    def __init__(self, candidate_id, challenge_id):
+        super().__init__('Candidate id (%s) and/or challenge id provided (%s) is/are invalid' % (candidate_id, challenge_id))
+
 class InvalidRepositoryStatusException(Exception):
 
     def __init__(self, candidate_id, status):
@@ -54,9 +59,12 @@ class AlreadyDeletedException(Exception):
     def __init__(self, candidate_id):
         super().__init__('Candidate with provided candidate id (%s) is already deleted' % candidate_id)
 
-
 class InvalidChallengeException(Exception):
 
     def __init__(self, challenge_id):
         super().__init__('Challenge id provided (%s) is invalid' % challenge_id)
 
+class UninitializedRepositoryException(Exception):
+
+    def __init__(self):
+        super().__init__('Repository for this candidate has not been initialized yet. Invite should be sent before viewing progress')
