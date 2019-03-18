@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from . import db
-from .constants import CandidateStatus
+from .constants import RepositoryStatus
 
 class Company(db.Model):
     company_id = db.Column(db.Integer, primary_key=True)
@@ -64,11 +64,9 @@ class Candidate(db.Model):
     l_name = db.Column(db.String(30), nullable=False)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
-    assigned_challenge = db.Column(db.Integer, db.ForeignKey(Challenge.challenge_id))
     deleted = db.Column(db.Boolean, default=False, nullable=False)
-    status = db.Column(db.Integer, default=0)
 
-    def __init__(self, email, username, password, f_name, l_name, assigned_challenge):
+    def __init__(self, email, username, password, f_name, l_name):
         self.email = email
         self.username = username
         self.password = password
@@ -76,10 +74,6 @@ class Candidate(db.Model):
         self.l_name = l_name
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
-        self.assigned_challenge = assigned_challenge
-
-    def already_sent_invite(self):
-        return self.status >= CandidateStatus.INVITED.value
 
 class Repository(db.Model):
     repository_id = db.Column(db.Integer, primary_key=True)
@@ -89,6 +83,7 @@ class Repository(db.Model):
     repo_link = db.Column(db.String(140), nullable=True)
     created = db.Column(db.DateTime())
     last_modified = db.Column(db.DateTime())
+    status = db.Column(db.Integer, default=0)
 
     def __init__(self, employer, candidate, challenge, repo_link=""):
         self.employer_id = employer
@@ -97,3 +92,6 @@ class Repository(db.Model):
         self.repo_link = repo_link
         self.created = datetime.utcnow()
         self.last_modified = datetime.utcnow()
+
+    def already_sent_invite(self):
+        return self.status >= RepositoryStatus.INVITED.value

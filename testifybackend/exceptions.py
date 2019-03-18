@@ -44,7 +44,7 @@ class InvalidCandidateException(Exception):
     def __init__(self, *candidate_ids):
         super().__init__('Candidate id(s) provided (%s) is/are invalid' % candidate_ids)
 
-class InvalidCandidateStatusException(Exception):
+class InvalidRepositoryStatusException(Exception):
 
     def __init__(self, candidate_id, status):
         super().__init__('Updating candidate with id (%s) to status (%s) not a valid action' % (candidate_id, status))

@@ -7,7 +7,7 @@ from testifybackend.constants import (
     CHALLENGES_AUTH_FP,
     GIT,
     GIT_SERVER,
-    CandidateStatus
+    RepositoryStatus
 )
 from testifybackend.models import (
     Candidate,
@@ -35,7 +35,7 @@ from testifybackend.exceptions import (
     CandidateExistsException,
     InvalidChallengeException,
     InvalidEmployerException,
-    InvalidCandidateStatusException
+    InvalidRepositoryStatusException
 )
 from . import db, mail, app
 from git import Repo
@@ -143,23 +143,30 @@ def create_candidate_pass():
 
 
 @app.route("/challenges/<challenge_id>/candidates/<candidate_id>", methods=["PUT"])
-def update_candidate_status(challenge_id, candidate_id):
+def update_repository_status(challenge_id, candidate_id):
     try:
-        candidate = db.session.query(Candidate).get(candidate_id)
-        if not candidate.assigned_challenge == int(challenge_id):
+        repository_records = db.session.query(Repository)\
+            .filter(Repository.candidate_id==int(candidate_id))\
+            .filter(Repository.challenge_id==int(challenge_id))
+
+        if repository_records.count() == 0:
             raise InvalidCandidateException(candidate_id)
+
+        repo = repository_records.first()
 
         status = request.json['status'].strip().lower()
         if status == "rejected":
-            candidate.status = CandidateStatus.REJECTED.value
+            repo.status = RepositoryStatus.REJECTED.value
         elif status == "accepted":
-            candidate.status = CandidateStatus.ACCEPTED.value
+            repo.status = RepositoryStatus.ACCEPTED.value
         else:
-            raise InvalidCandidateStatusException(candidate_id, status)
+            raise InvalidRepositoryStatusException(candidate_id, status)
 
         db.session.commit()
-        updated_candidate = db.session.query(Candidate).get(candidate_id)
-        return jsonify(candidate_schema.dump(updated_candidate))
+        updated_repo = db.session.query(Repository)\
+            .filter(Repository.candidate_id==int(candidate_id))\
+            .filter(Repository.challenge_id==int(challenge_id)).first()
+        return jsonify(repository_schema.dump(updated_repo))
 
     except Exception as e:
         return(str(e))
@@ -181,10 +188,8 @@ def add_candidates(challenge_id):
 
         username = create_unique_uname(email, f_name, l_name)
         password = create_candidate_pass()
-        assigned_challenge = challenge_id
 
-
-        new_candidate = Candidate(email, username, password, f_name, l_name, assigned_challenge)
+        new_candidate = Candidate(email, username, password, f_name, l_name)
         db.session.add(new_candidate)
         db.session.commit()
 
@@ -202,23 +207,24 @@ def add_candidates(challenge_id):
         return(str(e))
 
 
-def dictionize_res(j):
-    return {"candidate_id": j.candidate_id,
-            "email": j.email,
-            "f_name": j.f_name,
-            "l_name": j.l_name,
-            "status": j.status,
-            "employer_id": j.employer_id,
-            "repo_link": j.repo_link}
+def dictionize_res(res):
+    return {"candidate_id": res.candidate_id,
+            "email": res.email,
+            "f_name": res.f_name,
+            "l_name": res.l_name,
+            "status": res.status,
+            "employer_id": res.employer_id,
+            "repo_link": res.repo_link}
 
 @app.route("/challenges/candidates", methods=["GET"])
 def get_candidates():
     try:
         challenge_id = request.args.get("cid")
         candidates = db.session.query(Candidate).join(Repository)\
-                               .add_columns(Candidate.candidate_id, Candidate.deleted, Candidate.f_name, Candidate.assigned_challenge,
-                               Candidate.l_name, Candidate.status, Candidate.email, Candidate.status, Repository.employer_id, Repository.repo_link)\
-                               .filter(Candidate.assigned_challenge == challenge_id)\
+                               .add_columns(Candidate.candidate_id, Candidate.deleted, Candidate.f_name,
+                               Candidate.l_name, Candidate.email, Repository.status,
+                               Repository.challenge_id, Repository.employer_id, Repository.repo_link)\
+                               .filter(Repository.challenge_id == challenge_id)\
                                .filter(Candidate.deleted == False)
 
         data = [dictionize_res(c) for c in candidates.all()]
@@ -283,20 +289,22 @@ def add_to_htpasswd(candidate):
         authdb.add(candidate.username, candidate.password)
 
 def send_email_to_candidate(conn, challenge_id, candidate, res):
-    repo_record = db.session.query(Repository).filter(Repository.challenge_id==challenge_id)\
+    repo_record = db.session.query(Repository)\
+        .filter(Repository.challenge_id==challenge_id)\
         .filter(Repository.candidate_id==candidate.candidate_id)
 
     if not repo_record.count() == 1:
         raise InvalidChallengeException(challenge_id)
-    repo_record = repo_record.first()
+    repo = repo_record.first()
 
-    candidate.status = CandidateStatus.INVITED.value
-    credentials_msg = ("Credentials to the repository with the challenge:\nusername: %s\npassword: %s\n" % (candidate.username, candidate.password))
-    instructions = ("\n\nCopy and paste the following into a terminal to start:\n\n\tgit clone %s" % (repo_record.repo_link))
-    body = credentials_msg + instructions
-    subject = ("Hello %s %s, new challenge %s sent from %s" % (candidate.f_name, candidate.l_name, res.title, res.company))
-    msg = Message(recipients=[candidate.email], body=body, subject=subject)
-    conn.send(msg)
+    if not repo.already_sent_invite():
+        repo.status = RepositoryStatus.INVITED.value
+        credentials_msg = ("Credentials to the repository with the challenge:\nusername: %s\npassword: %s\n" % (candidate.username, candidate.password))
+        instructions = ("\n\nCopy and paste the following into a terminal to start:\n\n\tgit clone %s" % (repo.repo_link))
+        body = credentials_msg + instructions
+        subject = ("Hello %s %s, new challenge %s sent from %s" % (candidate.f_name, candidate.l_name, res.title, res.company))
+        msg = Message(recipients=[candidate.email], body=body, subject=subject)
+        conn.send(msg)
 
 @app.route("/challenges/<challenge_id>/invite", methods=["POST"])
 def invite_candidates(challenge_id):
@@ -328,19 +336,18 @@ def invite_candidates(challenge_id):
                 error_candidates.append(candidate_id)
                 continue
 
-            if not str(candidate.assigned_challenge) == challenge_id:
+            # ensure repo already exists
+            query = db.session.query(Repository)\
+                        .filter(Repository.candidate_id == candidate_id)\
+                        .filter(Repository.challenge_id == int(challenge_id))
+
+            if query.count() == 0:
                 error_candidates.append(candidate_id)
                 continue
 
-            # check if repo already exists
-            query = db.session.query(Repository)\
-                        .filter(Repository.candidate_id == candidate_id)\
-
-            exists = not query.count() == 0
-            if exists:
-                if not query.first().repo_link == "":
-                    error_candidates.append(candidate_id)
-                    continue
+            if not query.first().repo_link == "":
+                error_candidates.append(candidate_id)
+                continue
 
             create_candidate_repo(employer_repo, candidate, res)
 
@@ -356,8 +363,6 @@ def invite_candidates(challenge_id):
 
         with mail.connect() as conn:
             for candidate in candidates:
-                if candidate.already_sent_invite():
-                    continue
                 send_email_to_candidate(conn, cid, candidate, res)
 
         db.session.commit()

@@ -6,7 +6,7 @@ GIT = "git"
 GIT_SERVER = "tstfy.co"
 APP_NAME = "testify"
 
-class CandidateStatus(Enum):
+class RepositoryStatus(Enum):
     CREATED = 0
     INVITED = 1
     REJECTED = 2
