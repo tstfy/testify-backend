@@ -43,7 +43,8 @@ from git import Repo
 import htpasswd
 import os
 import shutil
-import uuid
+import secrets
+import string
 import subprocess
 import errno
 
@@ -137,7 +138,8 @@ def create_unique_uname(email, f_name, l_name):
 
 
 def create_candidate_pass():
-    return str(uuid.uuid4())
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for i in range(24))
 
 
 @app.route("/challenges/<challenge_id>/candidates/<candidate_id>", methods=["PUT"])
