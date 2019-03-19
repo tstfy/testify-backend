@@ -120,9 +120,9 @@ def company_challenge_count(employer):
 def create_unique_uname(email, f_name, l_name):
     try:
         username = email.split("@")[0]
-        if not db.session.query(Candidate)\
+        if db.session.query(Candidate)\
                          .filter(Candidate.username == username)\
-                         .count() == 0:
+                         .count() != 0:
             # username exists so need to make unique one from name
             f_initial = f_name[0]
             possible_collisions = db.session\
@@ -177,29 +177,32 @@ def update_repository_status(challenge_id, candidate_id):
 
 
 @app.route("/challenges/<challenge_id>/candidates", methods=["POST"])
-def add_candidates(challenge_id):
+def add_candidate(challenge_id):
     try:
         email = request.json['email']
         f_name = request.json['f_name']
         l_name = request.json['l_name']
         eid = request.json['eid']
 
+        if db.session.query(Candidate)\
+            .filter(Candidate.email == email).count() == 0:
+            username = create_unique_uname(email, f_name, l_name)
+            password = create_candidate_pass()
 
-        if not db.session.query(Candidate)\
-                         .filter(Candidate.email == email)\
-                         .count() == 0:
-            raise CandidateExistsException(email)
-
-        username = create_unique_uname(email, f_name, l_name)
-        password = create_candidate_pass()
-
-        new_candidate = Candidate(email, username, password, f_name, l_name)
-        db.session.add(new_candidate)
-        db.session.commit()
+            new_candidate = Candidate(email, username, password, f_name, l_name)
+            db.session.add(new_candidate)
+            db.session.commit()
 
         candidate_record = db.session.query(Candidate)\
-                                     .filter(Candidate.email == email)\
-                                     .first()
+                                    .filter(Candidate.email == email)\
+                                    .first()
+
+        if db.session.query(Repository).join(Candidate)\
+            .add_columns(Repository.challenge_id, Candidate.email)\
+            .filter(Repository.challenge_id==challenge_id)\
+            .filter(Candidate.email==email).count() != 0:
+
+            raise InvalidCandidateChallengeComboException(candidate_record.candidate_id, challenge_id)
 
         new_repo = Repository(eid, candidate_record.candidate_id, challenge_id)
         db.session.add(new_repo)
@@ -265,7 +268,7 @@ def get_candidate_repository(challenge_id, candidate_id):
             .filter(Repository.challenge_id==int(challenge_id))\
             .filter(Repository.candidate_id==int(candidate_id))
 
-        if not repo_record.count() == 1:
+        if repo_record.count() != 1:
             raise InvalidCandidateChallengeComboException(candidate_id, challenge_id)
         repo = repo_record.first()
 
@@ -276,7 +279,7 @@ def get_candidate_repository(challenge_id, candidate_id):
                 .add_columns(Employer.employer_id, Employer.company, Challenge.challenge_id, Challenge.title)\
                 .filter(Employer.employer_id == repo.employer_id)\
                 .filter(Challenge.challenge_id == repo.challenge_id)
-        if not res.count() == 1:
+        if res.count() != 1:
             raise InvalidCandidateChallengeComboException(candidate_id, challenge_id)
         res = res.first()
 
@@ -319,7 +322,7 @@ def create_candidate_repo(employer_repo, candidate, res):
         .filter(Repository.candidate_id==candidate.candidate_id)\
         .filter(Repository.challenge_id==res.challenge_id)
 
-    if not repo_record.count() == 1:
+    if repo_record.count() != 1:
         raise InvalidCandidateException(candidate.candidate_id)
 
     repo_record.first().repo_link = candidate_repo_link
@@ -327,14 +330,15 @@ def create_candidate_repo(employer_repo, candidate, res):
 
 def add_to_htpasswd(candidate):
     with htpasswd.Basic(CHALLENGES_AUTH_FP) as authdb:
-        authdb.add(candidate.username, candidate.password)
+        if not authdb.__contains__(candidate.username):
+            authdb.add(candidate.username, candidate.password)
 
 def send_email_to_candidate(conn, challenge_id, candidate, res):
     repo_record = db.session.query(Repository)\
         .filter(Repository.challenge_id==challenge_id)\
         .filter(Repository.candidate_id==candidate.candidate_id)
 
-    if not repo_record.count() == 1:
+    if repo_record.count() != 1:
         raise InvalidChallengeException(challenge_id)
     repo = repo_record.first()
 
@@ -360,7 +364,7 @@ def invite_candidates(challenge_id):
             .add_columns(Employer.employer_id, Employer.company, Challenge.challenge_id, Challenge.title)\
             .filter(Employer.employer_id == eid)\
             .filter(Challenge.challenge_id == challenge_id)
-        if not res.count() == 1:
+        if res.count() != 1:
             raise InvalidChallengeException(challenge_id)
 
         res = res.first()
@@ -386,7 +390,7 @@ def invite_candidates(challenge_id):
                 error_candidates.append(candidate_id)
                 continue
 
-            if not query.first().repo_link == "":
+            if query.first().repo_link != "":
                 error_candidates.append(candidate_id)
                 continue
 
