@@ -1,25 +1,20 @@
 from . import ma
 
-
 class CompanySchema(ma.Schema):
     class Meta:
         fields = ('name',)
-
 
 class EmployerSchema(ma.Schema):
     class Meta:
         fields = ('employer_id', 'username', 'email', 'f_name', 'l_name', 'last_modified', 'company')
 
-
 class ChallengeSchema(ma.Schema):
     class Meta:
-        fields = ('challenge_id', 'employer_id', 'title', 'description', 'category', 'repo_link')
-
+        fields = ('challenge_id', 'employer_id', 'title', 'description', 'category', 'repo_link', 'finished')
 
 class CandidateSchema(ma.Schema):
     class Meta:
         fields = ('candidate_id', 'email', 'f_name', 'l_name', 'last_modified')
-
 
 class RepositorySchema(ma.Schema):
     class Meta:

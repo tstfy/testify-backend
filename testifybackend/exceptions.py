@@ -54,6 +54,11 @@ class InvalidRepositoryStatusException(Exception):
     def __init__(self, candidate_id, status):
         super().__init__('Updating candidate with id (%s) to status (%s) not a valid action' % (candidate_id, status))
 
+class AlreadyFinishedException(Exception):
+
+    def __init__(self, challenge_id):
+        super().__init__('Challenge with provided challenge id (%s) is already finished' % challenge_id)
+
 class AlreadyDeletedException(Exception):
 
     def __init__(self, candidate_id):

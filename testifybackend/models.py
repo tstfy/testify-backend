@@ -44,6 +44,7 @@ class Challenge(db.Model):
     last_modified = db.Column(db.DateTime())
     repo_link = db.Column(db.String(140), nullable=False)
     deleted = db.Column(db.Boolean, default=False, nullable=False)
+    finished = db.Column(db.Boolean, default=False, nullable=False)
 
     def __init__(self, employer, title, description, category, repo_link):
         self.employer_id = employer

@@ -38,6 +38,7 @@ from testifybackend.exceptions import (
     InvalidRepositoryStatusException,
     InvalidCandidateChallengeComboException,
     UninitializedRepositoryException,
+    AlreadyFinishedException,
 )
 from . import db, mail, app
 from git import Repo
@@ -439,7 +440,6 @@ def get_challenges():
 
 
 @app.route("/challenges", methods=["POST"])
-# @login_required; employer login required
 def create_challenge():
     try:
         employer = request.json['employer']
@@ -484,6 +484,22 @@ def create_challenge():
     except Exception as e:
         return(str(e))
 
+@app.route("/challenges/<challenge_id>", methods=["PUT"])
+def finish_challenge(challenge_id):
+    try:
+        challenge = db.session.query(Challenge).get(challenge_id)
+        if challenge is None:
+            raise InvalidChallengeException(challenge_id)
+        if challenge.finished:
+            raise AlreadyFinishedException(challenge_id)
+        challenge.finished=True
+        db.session.commit()
+
+        updated_challenge = db.session.query(Challenge).get(challenge_id)
+        return jsonify(challenge_schema.dump(updated_challenge).data)
+
+    except Exception as e:
+        return(str(e))
 
 @app.route("/users", methods=["POST"])
 def register_user():
