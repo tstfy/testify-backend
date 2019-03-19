@@ -291,7 +291,7 @@ def get_candidate_repository(challenge_id, candidate_id):
         repo = Repo(candidate_repo)
         first_commits = list(repo.iter_commits('master', max_count=10))
 
-        data = [{"commit_date": time.gmtime(commit.committed_date),
+        data = [{"commit_date": time.strftime("%a, %d %b %Y %H:%M", time.gmtime(commit.committed_date)),
                 "message": commit.message} for commit in first_commits]
 
         json_data = [construct_data("progression", idx, datum) for idx, datum in enumerate(data)]
